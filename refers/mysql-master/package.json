@@ -1,0 +1,102 @@
+{
+  "name": "@eggjs/mysql",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "6.0.0",
+  "description": "MySQL plugin for Egg.js",
+  "eggPlugin": {
+    "name": "mysql",
+    "exports": {
+      "import": "./dist/esm",
+      "require": "./dist/commonjs",
+      "typescript": "./src"
+    }
+  },
+  "keywords": [
+    "egg",
+    "eggPlugin",
+    "egg-plugin",
+    "mysql",
+    "database"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eggjs/mysql.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eggjs/mysql/issues"
+  },
+  "homepage": "https://github.com/eggjs/mysql#readme",
+  "author": "jtyjty99999",
+  "license": "MIT",
+  "engines": {
+    "node": ">= 18.19.0"
+  },
+  "dependencies": {
+    "@eggjs/core": "^6.4.0",
+    "@eggjs/rds": "^1.2.1"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.17.4",
+    "@eggjs/bin": "7",
+    "@eggjs/mock": "^6.0.7",
+    "@eggjs/tsconfig": "2",
+    "@types/mocha": "10",
+    "@types/node": "22",
+    "egg": "^4.0.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "oxlint": "^0.16.2",
+    "prettier": "^3.5.3",
+    "rimraf": "6",
+    "snap-shot-it": "^7.9.10",
+    "tshy": "3",
+    "tshy-after": "1",
+    "typescript": "5"
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "pretest": "npm run clean && npm run lint -- --fix",
+    "test": "egg-bin test",
+    "preci": "npm run clean && npm run lint",
+    "ci": "egg-bin cov",
+    "postci": "npm run prepublishOnly && npm run clean",
+    "clean": "rimraf dist",
+    "prepublishOnly": "tshy && tshy-after && attw --pack",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown --cache",
+    "*.{ts,js,json,md,yml}": [
+      "prettier --ignore-unknown --write",
+      "oxlint --fix"
+    ]
+  },
+  "type": "module",
+  "tshy": {
+    "exports": {
+      ".": "./src/index.ts",
+      "./package.json": "./package.json"
+    }
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/commonjs/index.d.ts",
+        "default": "./dist/commonjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "types": "./dist/commonjs/index.d.ts",
+  "main": "./dist/commonjs/index.js"
+}

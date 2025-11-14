@@ -1,0 +1,10 @@
+{
+  "extends": "@eggjs/tsconfig",
+  "compilerOptions": {
+    "module": "Node16",
+    "ignoreDeprecations": "5.0",
+    "useUnknownInCatchVariables": false,
+    "target": "ESNext"
+  },
+  "include": ["config", "app.ts", "lib", "typing.d.ts"]
+}

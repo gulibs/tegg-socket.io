@@ -1,0 +1,16 @@
+logs/
+npm-debug.log
+node_modules/
+coverage/
+.idea/
+run/
+.DS_Store
+*.swp
+lib/*.js
+lib/*.d.ts
+config/*.js
+config/*.d.ts
+agent.js
+agent.d.ts
+app.js
+app.d.ts
