@@ -2,8 +2,8 @@ import { Server } from '../../lib/socket.io/index.js';
 import type { LoadedMiddleware, LoadedController } from '../../lib/types.js';
 import debug from 'debug';
 
-const debugLog = debug('egg-socket.io:app:extend:application');
-const SocketIOSymbol = Symbol.for('EGG-SOCKET.IO#IO');
+const debugLog = debug('tegg-socket.io:app:extend:application');
+const SocketIOSymbol = Symbol.for('TEGG-SOCKET.IO#IO');
 
 /**
  * Application extension for Socket.IO
@@ -20,7 +20,7 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const app = this as any;
     if (!app[SocketIOSymbol]) {
-      debugLog('[egg-socket.io] create SocketIO instance!');
+      debugLog('[tegg-socket.io] create SocketIO instance!');
       app[SocketIOSymbol] = new Server() as Server & { middleware: LoadedMiddleware; controller: LoadedController };
       app[SocketIOSymbol].serveClient(false);
       // Initialize controller and middleware objects

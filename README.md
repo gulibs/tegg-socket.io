@@ -306,6 +306,16 @@ declare module 'egg' {
     chat: ChatController;
   }
 }
+
+### Auto-generate Socket.IO typings
+
+`@gulibs/tegg-socket.io` ships an [`egg.tsHelper.generatorConfig`](https://github.com/eggjs/egg-ts-helper) entry. Running `npx ets` automatically scans `app/io/controller` and `app/io/middleware` and emits `typings/app/io/**/index.d.ts`, so `CustomController` and `CustomMiddleware` stay synchronized without manual typing files.
+
+1. Add `egg-ts-helper` as a dev dependency (or use `egg-bin dev --dts`, which bundles it).
+2. Run `npx ets` (or `npx ets -w`) whenever your IO controllers/middleware change.
+3. Keep the official workflow (`ets && tsc`, see `refers/docs/tegg文档/教程/TypeScript.md`) in CI scripts so generated declarations are always current.
+
+The generated files extend the interfaces defined in `src/typings/index.d.ts`, giving IDEs correct hints for `app.io.controller.*` and `app.io.middleware.*`.
 ```
 
 ## Deployment

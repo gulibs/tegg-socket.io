@@ -1,6 +1,6 @@
 {
   "name": "@gulibs/tegg-socket.io",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -26,9 +26,9 @@
     "url": "git+https://github.com/gulibs/tegg-socket.io.git"
   },
   "bugs": {
-    "url": "https://github.com/eggjs/egg/issues"
+    "url": "https://github.com/gulibs/tegg-socket.io/issues"
   },
-  "homepage": "https://github.com/eggjs/egg-tegg-socket.io#readme",
+  "homepage": "https://github.com/gulibs/tegg-socket.io/blob/main/README.md",
   "author": "",
   "license": "MIT",
   "engines": {
@@ -54,6 +54,8 @@
     "@types/node": "22",
     "@types/socket.io": "^3.0.2",
     "egg": "4",
+    "egg-core": "^5.5.1",
+    "egg-ts-helper": "^1.35.2",
     "eslint": "8",
     "eslint-config-egg": "14",
     "rimraf": "6",

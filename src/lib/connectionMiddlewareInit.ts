@@ -6,7 +6,7 @@ import type { ComposedSocketIOMiddleware, ExtendedIncomingMessage } from './type
 import { delegateSocket } from './util.js';
 import debug from 'debug';
 
-const debugLog = debug('egg-socket.io:lib:connectionMiddlewareInit');
+const debugLog = debug('tegg-socket.io:lib:connectionMiddlewareInit');
 
 /**
  * Initialize connection middleware execution

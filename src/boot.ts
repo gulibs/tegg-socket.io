@@ -10,7 +10,7 @@ import compose from 'koa-compose';
 import { loadControllersAndMiddleware } from './lib/loader.js';
 import { connectionMiddlewareInit } from './lib/connectionMiddlewareInit.js';
 import { packetMiddlewareInit, CtxEventSymbol } from './lib/packetMiddlewareInit.js';
-import { RouterConfigSymbol } from './lib/socket.io/namespace.js';
+import { RouterConfigSymbol } from './lib/types.js';
 import type {
   SocketIOMiddleware,
   ComposedSocketIOMiddleware,
@@ -23,7 +23,7 @@ import type {
 } from './lib/types.js';
 import debug from 'debug';
 
-const debugLog = debug('egg-socket.io:lib:boot');
+const debugLog = debug('tegg-socket.io:lib:boot');
 
 // System events that need special handling
 const errorEvent: Record<string, number> = {
@@ -62,24 +62,24 @@ export class SocketIOBootHook implements ILifecycleBoot {
 
   /**
    * Config did load hook
-   * Application extension is now defined in app/extend/application.ts
-   * This hook is kept for future extension logic if needed
+   * Load controllers and middleware before router is loaded
+   * This ensures app.io.controller and app.io.middleware are available in router files
    */
   configDidLoad() {
-    // Application extension is now handled by app/extend/application.ts
-    // This matches the traditional Egg.js plugin pattern
-  }
-
-  /**
-   * Did load hook
-   * Load controllers and middleware after all files are loaded
-   */
-  async didLoad() {
     // Load controllers and middleware using FileLoader pattern
     // app.io is now defined in app/extend/application.ts (loaded before boot.ts)
     // Type assertion needed because EggCore doesn't have all Application properties
     // but loadControllersAndMiddleware only needs the loader property
     loadControllersAndMiddleware(this.app as unknown as Application);
+  }
+
+  /**
+   * Did load hook
+   * This hook is kept for future extension logic if needed
+   */
+  async didLoad() {
+    // Controllers and middleware are now loaded in configDidLoad
+    // This matches the traditional Egg.js plugin pattern
   }
 
   /**
@@ -90,7 +90,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
     const config = this.app.config.teggSocketIO;
     const namespace = config.namespace || {};
 
-    debugLog('[egg-socket.io] init start!');
+    debugLog('[tegg-socket.io] init start!');
 
     // Initialize namespaces
     for (const nsp in namespace) {
@@ -98,8 +98,8 @@ export class SocketIOBootHook implements ILifecycleBoot {
       const connectionMiddlewareConfig = nspConfig.connectionMiddleware;
       const packetMiddlewareConfig = nspConfig.packetMiddleware;
 
-      debugLog('[egg-socket.io] connectionMiddlewareConfig: %o', connectionMiddlewareConfig);
-      debugLog('[egg-socket.io] packetMiddlewareConfig: %o', packetMiddlewareConfig);
+      debugLog('[tegg-socket.io] connectionMiddlewareConfig: %o', connectionMiddlewareConfig);
+      debugLog('[tegg-socket.io] packetMiddlewareConfig: %o', packetMiddlewareConfig);
 
       const connectionMiddlewares: SocketIOMiddleware[] = [];
       const packetMiddlewares: SocketIOMiddleware[] = [];
@@ -130,7 +130,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
         }
       }
 
-      debugLog('[egg-socket.io] initNsp: %s', nsp);
+      debugLog('[tegg-socket.io] initNsp: %s', nsp);
 
       // Find session middleware if available
       // Type assertion needed because EggCore doesn't expose middleware array directly
@@ -154,8 +154,8 @@ export class SocketIOBootHook implements ILifecycleBoot {
         packetMiddlewares.map(mw => toKoaMiddleware(mw)),
       ) as unknown as ComposedSocketIOMiddleware;
 
-      debugLog('[egg-socket.io] connectionMiddlewares: %o', connectionMiddlewares);
-      debugLog('[egg-socket.io] packetMiddlewares: %o', packetMiddlewares);
+      debugLog('[tegg-socket.io] connectionMiddlewares: %o', connectionMiddlewares);
+      debugLog('[tegg-socket.io] packetMiddlewares: %o', packetMiddlewares);
 
       this.initNsp(
         this.app.io.of(nsp) as ExtendedNamespace,
@@ -171,11 +171,14 @@ export class SocketIOBootHook implements ILifecycleBoot {
       const redis = require('socket.io-redis');
       const adapter = redis(config.redis);
       // https://github.com/socketio/socket.io-redis/issues/21
-      adapter.prototype.on('error', (err: Error) => {
-        this.app.coreLogger.error(err);
-      });
+      // Attach error handler to the adapter instance
+      if (adapter && typeof adapter.on === 'function') {
+        adapter.on('error', (err: Error) => {
+          this.app.coreLogger.error(err);
+        });
+      }
       this.app.io.adapter(adapter);
-      debugLog('[egg-socket.io] init socket.io-redis ready!');
+      debugLog('[tegg-socket.io] init socket.io-redis ready!');
     }
 
     // Register server event listener for Socket.IO attachment
@@ -195,7 +198,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
         (this.app.io.engine as { generateId?: (req: unknown) => string }).generateId = config.generateId;
       }
 
-      debugLog('[egg-socket.io] init ready!');
+      debugLog('[tegg-socket.io] init ready!');
     });
   }
 
@@ -216,17 +219,17 @@ export class SocketIOBootHook implements ILifecycleBoot {
 
       const routerMap = nsp[RouterConfigSymbol];
       if (routerMap) {
-        for (const [ event, handler ] of routerMap.entries()) {
+        for (const [event, handler] of routerMap.entries()) {
           if (errorEvent[event]) {
             socket.on(event, (...args: unknown[]) => {
-              debugLog('[egg-socket.io] socket closed: %o', args);
+              debugLog('[tegg-socket.io] socket closed: %o', args);
               const request = socket.request as unknown as ExtendedIncomingMessage & http.IncomingMessage;
               (request as ExtendedIncomingMessage).socket = socket;
               const ctx = app.createContext(request as http.IncomingMessage, new http.ServerResponse(request as http.IncomingMessage)) as SocketIOContext;
               ctx.args = args;
               Promise.resolve(handler.call(ctx as unknown as Context))
                 .catch((e: Error) => {
-                  e.message = '[egg-socket.io] controller execute error: ' + e.message;
+                  e.message = '[tegg-socket.io] controller execute error: ' + e.message;
                   this.app.coreLogger.error(e);
                 });
             });
@@ -240,7 +243,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
                 })
                 .catch((e: Error) => {
                   if (e instanceof Error) {
-                    e.message = '[egg-socket.io] controller execute error: ' + e.message;
+                    e.message = '[tegg-socket.io] controller execute error: ' + e.message;
                   } else {
                     debugLog(e);
                   }

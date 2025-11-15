@@ -1,15 +1,15 @@
-import path from 'node:path';
 import type { Application } from 'egg';
 import debug from 'debug';
 import type { LoadedMiddleware, LoadedController } from './types.js';
+import { getIoLoadDirs } from './ioLoadDirs.js';
 
 // CustomMiddleware and CustomController are declared in typings/index.d.ts
 // They are interfaces that users extend in their applications
 // Here we use LoadedMiddleware and LoadedController which have index signatures
-type CustomMiddleware = LoadedMiddleware;
-type CustomController = LoadedController;
+type LoadedMiddlewareDictionary = LoadedMiddleware;
+type LoadedControllerDictionary = LoadedController;
 
-const debugLog = debug('egg-socket.io:lib:loader');
+const debugLog = debug('tegg-socket.io:lib:loader');
 
 /**
  * Load controllers and middleware using Tegg-compatible FileLoader pattern
@@ -18,20 +18,20 @@ const debugLog = debug('egg-socket.io:lib:loader');
 export function loadControllersAndMiddleware(app: Application): void {
   const { loader } = app;
   const { FileLoader } = loader;
-
-  // Load middleware from app/io/middleware/ across all load units
-  const middlewareDirs = loader.getLoadUnits().map(unit =>
-    path.join(unit.path, 'app', 'io', 'middleware'),
-  );
+  const { controllerDirs, middlewareDirs } = getIoLoadDirs(app);
+  const ioServer = app.io as unknown as {
+    middleware: LoadedMiddlewareDictionary;
+    controller: LoadedControllerDictionary;
+  };
 
   // Runtime uses LoadedMiddleware, but types use CustomMiddleware
   // Initialize middleware object if it doesn't exist
-  if (!app.io.middleware) {
-    app.io.middleware = {} as unknown as CustomMiddleware;
+  if (!ioServer.middleware) {
+    ioServer.middleware = {} as LoadedMiddlewareDictionary;
   }
   // Use type assertion to access LoadedMiddleware for FileLoader
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const middlewareTarget = app.io.middleware as any as LoadedMiddleware;
+  const middlewareTarget = ioServer.middleware as unknown as LoadedMiddlewareDictionary;
   new FileLoader({
     directory: middlewareDirs,
     target: middlewareTarget,
@@ -40,36 +40,31 @@ export function loadControllersAndMiddleware(app: Application): void {
   // Reassign to ensure type compatibility
   // TypeScript may complain here because CustomMiddleware can be extended by users
   // but at runtime, LoadedMiddleware has index signature and is compatible
-  app.io.middleware = middlewareTarget as unknown as CustomMiddleware;
+  ioServer.middleware = middlewareTarget;
 
-  debugLog('[egg-socket.io] app.io.middleware: %o', app.io.middleware);
+  debugLog('[tegg-socket.io] app.io.middleware: %o', app.io.middleware);
 
   // Load controllers from app/io/controller/ across all load units
   // Note: Reference implementation uses app.loader.loadController() for controllers
   // but that method is designed for app/controller, not app/io/controller
   // So we use FileLoader here, matching the middleware loading pattern
-  const controllerDirs = loader.getLoadUnits().map(unit =>
-    path.join(unit.path, 'app', 'io', 'controller'),
-  );
-
   // Runtime uses LoadedController, but types use CustomController
   // Initialize controller object if it doesn't exist
-  if (!app.io.controller) {
-    app.io.controller = {} as unknown as CustomController;
+  if (!ioServer.controller) {
+    ioServer.controller = {} as LoadedControllerDictionary;
   }
   // Use type assertion to access LoadedController for FileLoader
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const controllerTarget = app.io.controller as any as LoadedController;
-  new FileLoader({
+  const controllerTarget = ioServer.controller as unknown as LoadedControllerDictionary;
+  loader.loadController({
     directory: controllerDirs,
     target: controllerTarget,
-    inject: app,
-  }).load();
+  });
   // Reassign to ensure type compatibility
   // TypeScript may complain here because CustomController can be extended by users
   // but at runtime, LoadedController has index signature and is compatible
-  app.io.controller = controllerTarget;
+  ioServer.controller = controllerTarget;
 
-  debugLog('[egg-socket.io] app.io.controller: %o', app.io.controller);
+  debugLog('[tegg-socket.io] app.io.controller: %o', app.io.controller);
 }
 

@@ -1,8 +1,0 @@
-import { Server } from 'socket.io';
-import './namespace.js';
-import './socket.js';
-Server.prototype.route = function (event, handler) {
-    return this.sockets.route(event, handler);
-};
-export { Server };
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvbGliL3NvY2tldC5pby9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxPQUFPLEVBQUUsTUFBTSxFQUFFLE1BQU0sV0FBVyxDQUFDO0FBQ25DLE9BQU8sZ0JBQWdCLENBQUM7QUFDeEIsT0FBTyxhQUFhLENBQUM7QUFhckIsTUFBTSxDQUFDLFNBQVMsQ0FBQyxLQUFLLEdBQUcsVUFBUyxLQUFhLEVBQUUsT0FBcUI7SUFDcEUsT0FBTyxJQUFJLENBQUMsT0FBTyxDQUFDLEtBQUssQ0FBQyxLQUFLLEVBQUUsT0FBTyxDQUFDLENBQUM7QUFDNUMsQ0FBQyxDQUFDO0FBRUYsT0FBTyxFQUFFLE1BQU0sRUFBRSxDQUFDIn0=

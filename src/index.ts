@@ -1,1 +1,1 @@
-import './config/config.default.js';
+import './types.js';

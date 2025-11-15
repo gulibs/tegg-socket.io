@@ -306,6 +306,16 @@ declare module 'egg' {
     chat: ChatController;
   }
 }
+
+### 自动生成 Socket.IO 类型
+
+插件已经在 `package.json` 的 [`egg.tsHelper.generatorConfig`](https://github.com/eggjs/egg-ts-helper) 中注册了 `app/io/controller` 与 `app/io/middleware` 目录，执行 `npx ets` 时会自动生成 `typings/app/io/**/index.d.ts`，把所有控制器/中间件合并到 `CustomController`、`CustomMiddleware` 接口中。
+
+1. 安装 `egg-ts-helper`（或使用内置该工具的 `egg-bin dev --dts`）。
+2. 在开发或 CI 中运行 `npx ets`（或 `npx ets -w`）刷新类型文件。
+3. 参考 [TypeScript 指南](refers/docs/tegg文档/教程/TypeScript.md) 保持 `ets && tsc -p tsconfig.json` 的构建顺序，确保声明永远是最新的。
+
+生成的声明文件直接扩展 `src/typings/index.d.ts` 里的接口，因此 IDE 可以准确提示 `app.io.controller.*` 与 `app.io.middleware.*`。
 ```
 
 ## 部署

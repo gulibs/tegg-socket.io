@@ -5,11 +5,10 @@ import type { Socket } from 'socket.io';
 import type { IncomingMessage as HttpIncomingMessage } from 'node:http';
 import type { ComposedSocketIOMiddleware, ExtendedNamespace, SocketIOContext, SocketIOPacket, ExtendedIncomingMessage } from './types.js';
 import { delegateSocket } from './util.js';
-import { RouterConfigSymbol } from './socket.io/namespace.js';
-import { CtxEventSymbol } from './types.js';
+import { RouterConfigSymbol, CtxEventSymbol } from './types.js';
 import debug from 'debug';
 
-const debugLog = debug('egg-socket.io:lib:packetMiddlewareInit');
+const debugLog = debug('tegg-socket.io:lib:packetMiddlewareInit');
 
 /**
  * Initialize packet middleware execution
@@ -34,13 +33,13 @@ export function packetMiddlewareInit(
     packet.push(ctx);
     next();
     const eventName = packet[0];
-    const routerMap = nsp[RouterConfigSymbol];
+    const routerMap = (nsp as ExtendedNamespace)[RouterConfigSymbol];
     if (routerMap && routerMap.has(eventName)) {
-      debugLog('[egg-socket.io] wait controller finished!');
+      debugLog('[tegg-socket.io] wait controller finished!');
       // After controller execute finished, resume middlewares
       await new Promise<void>((resolve, reject) => {
         ctx[CtxEventSymbol]?.on('finshed', (error?: Error) => {
-          debugLog('[egg-socket.io] controller execute finished, resume middlewares');
+          debugLog('[tegg-socket.io] controller execute finished, resume middlewares');
           if (!error) {
             resolve();
           } else {

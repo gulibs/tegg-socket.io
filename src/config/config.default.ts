@@ -40,7 +40,7 @@ export interface RedisConfig {
 /**
  * Socket.IO plugin configuration
  */
-export interface teggSocketIOConfig {
+export interface SocketIOConfig {
   /**
    * Namespace configuration
    * @default {}
@@ -64,18 +64,11 @@ export interface teggSocketIOConfig {
 }
 
 /**
- * egg-tegg-socket.io default config
+ * tegg-socket.io default config
  * @member Config#teggSocketIO
  */
 export default {
   teggSocketIO: {
     namespace: {},
-  } as teggSocketIOConfig,
+  } as SocketIOConfig,
 };
-
-declare module '@eggjs/core' {
-  // add EggAppConfig overrides types
-  interface EggAppConfig {
-    teggSocketIO: teggSocketIOConfig;
-  }
-}

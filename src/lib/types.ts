@@ -6,12 +6,12 @@ import type { ComposedMiddleware } from 'koa-compose';
 /**
  * Router configuration symbol
  */
-export const RouterConfigSymbol: unique symbol = Symbol.for('EGG-SOCKET.IO#ROUTERCONFIG');
+export const RouterConfigSymbol: unique symbol = Symbol.for('TEGG-SOCKET.IO#ROUTERCONFIG');
 
 /**
  * Context event symbol
  */
-export const CtxEventSymbol: unique symbol = Symbol.for('EGG-SOCKET.IO#CTX-EVENT');
+export const CtxEventSymbol: unique symbol = Symbol.for('TEGG-SOCKET.IO#CTX-EVENT');
 
 /**
  * Socket.IO packet type
@@ -43,7 +43,7 @@ export type ComposedSocketIOMiddleware = ComposedMiddleware<Context>;
  * Extended Socket.IO Namespace with router configuration
  */
 export interface ExtendedNamespace extends Namespace {
-  [RouterConfigSymbol]?: Map<string, RouteHandler>;
+    [RouterConfigSymbol]?: Map<string, RouteHandler>;
 }
 
 /**
@@ -52,7 +52,7 @@ export interface ExtendedNamespace extends Namespace {
  * This is just a type helper
  */
 export type ExtendedSocket = Socket & {
-  request: ExtendedIncomingMessage;
+    request: ExtendedIncomingMessage;
 };
 
 /**
@@ -61,34 +61,34 @@ export type ExtendedSocket = Socket & {
  * We extend it to add socket and args properties
  */
 export interface ExtendedIncomingMessage {
-  socket?: Socket;
-  args?: unknown[];
-  [key: string]: unknown;
+    socket?: Socket;
+    args?: unknown[];
+    [key: string]: unknown;
 }
 
 /**
  * Extended Context with Socket.IO specific properties
  */
 export interface SocketIOContext extends Context {
-  socket: Socket;
-  args?: unknown[];
-  packet?: SocketIOPacket;
-  [CtxEventSymbol]?: NodeJS.EventEmitter;
-  req: ExtendedIncomingMessage & Context['req'];
+    socket: Socket;
+    args?: unknown[];
+    packet?: SocketIOPacket;
+    [CtxEventSymbol]?: NodeJS.EventEmitter;
+    req: ExtendedIncomingMessage & Context['req'];
 }
 
 /**
  * Loaded middleware map
  */
 export interface LoadedMiddleware {
-  [key: string]: SocketIOMiddleware;
+    [key: string]: SocketIOMiddleware;
 }
 
 /**
  * Loaded controller map
  */
 export interface LoadedController {
-  [key: string]: RouteHandler | { [method: string]: RouteHandler };
+    [key: string]: RouteHandler | { [method: string]: RouteHandler };
 }
 
 /**
@@ -96,4 +96,3 @@ export interface LoadedController {
  * Can be any middleware function compatible with Egg Context
  */
 export type SessionMiddleware = SocketIOMiddleware & { _name?: string };
-
