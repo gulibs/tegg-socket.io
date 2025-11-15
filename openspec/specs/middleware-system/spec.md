@@ -19,6 +19,12 @@ The plugin SHALL load middleware from `app/io/middleware/` directories across al
 - **AND** it SHALL support object exports (factory results)
 - **AND** all formats SHALL be converted to Koa-compatible middleware
 
+#### Scenario: Middleware loader metadata
+- **WHEN** middleware directories are enumerated across load units
+- **THEN** the loader SHALL record the directory list so it can be reused by declaration tooling
+- **AND** the same list SHALL be passed to `npx ets` so generated typings extend `CustomMiddleware` with actual middleware names
+- **AND** runtime loading and declaration generation SHALL stay in sync even when additional frameworks/plugins add middleware directories
+
 ### Requirement: Connection Middleware
 The plugin SHALL support connection middleware that executes on socket connection and disconnection.
 

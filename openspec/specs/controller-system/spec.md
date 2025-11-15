@@ -4,7 +4,7 @@
 This specification defines the controller system for the `@eggjs/tegg-socket.io` plugin, including event-based controller loading and routing. It ensures that Socket.IO events are properly routed to controller methods with access to Egg.js context and Socket.IO socket instances.
 ## Requirements
 ### Requirement: Controller Loading
-The plugin SHALL load controllers from `app/io/controller/` directories across all load units using FileLoader pattern.
+The plugin SHALL load controllers from `app/io/controller/` directories across all load units using Egg’s controller loader so metadata stays consistent with load-unit ordering.
 
 #### Scenario: Controller directory loading
 - **WHEN** the plugin initializes
@@ -18,6 +18,12 @@ The plugin SHALL load controllers from `app/io/controller/` directories across a
 - **AND** it SHALL support object exports with method properties
 - **AND** it SHALL support function exports as event handlers
 - **AND** all formats SHALL work with the routing system
+
+#### Scenario: Controller loader metadata
+- **WHEN** controller directories are enumerated across all load units
+- **THEN** the loader SHALL call Egg’s `loadController()` helper so controller metadata follows load-unit order
+- **AND** the same directory list SHALL be exposed to tooling so `npx ets` can extend `CustomController` with the discovered controller names
+- **AND** the metadata SHALL stay consistent between runtime loading and declaration generation
 
 ### Requirement: Event Routing
 The plugin SHALL route Socket.IO events to controller methods via router configuration.
