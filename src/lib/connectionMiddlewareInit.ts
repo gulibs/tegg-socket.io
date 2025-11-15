@@ -2,7 +2,7 @@ import http from 'node:http';
 import type { Application } from 'egg';
 import type { Socket } from 'socket.io';
 import type { IncomingMessage as HttpIncomingMessage } from 'node:http';
-import type { ComposedSocketIOMiddleware, ExtendedIncomingMessage } from './types.js';
+import type { ComposedSocketIOMiddleware, ExtendedIncomingMessage } from '../types.js';
 import { delegateSocket } from './util.js';
 import debug from 'debug';
 

@@ -3,9 +3,9 @@ import { EventEmitter } from 'node:events';
 import type { Application, Context } from 'egg';
 import type { Socket } from 'socket.io';
 import type { IncomingMessage as HttpIncomingMessage } from 'node:http';
-import type { ComposedSocketIOMiddleware, ExtendedNamespace, SocketIOContext, SocketIOPacket, ExtendedIncomingMessage } from './types.js';
+import type { ComposedSocketIOMiddleware, ExtendedNamespace, SocketIOContext, SocketIOPacket, ExtendedIncomingMessage } from '../types.js';
 import { delegateSocket } from './util.js';
-import { RouterConfigSymbol, CtxEventSymbol } from './types.js';
+import { RouterConfigSymbol, CtxEventSymbol } from '../types.js';
 import debug from 'debug';
 
 const debugLog = debug('tegg-socket.io:lib:packetMiddlewareInit');

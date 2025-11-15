@@ -2,8 +2,8 @@ import assert from 'node:assert';
 import { Namespace } from 'socket.io';
 import is from 'is-type-of';
 import debug from 'debug';
-import type { RouteHandler } from '../types.js';
-import { RouterConfigSymbol } from '../types.js';
+import type { RouteHandler } from '../../types.js';
+import { RouterConfigSymbol } from '../../types.js';
 
 const debugLog = debug('tegg-socket.io:lib:socket.io:namespace');
 
@@ -30,3 +30,4 @@ const namespaceRoute = function (
 // esm and cjs declaration files the `this` types diverge because of private
 // fields. Cast through `unknown` to keep structural compatibility.
 Namespace.prototype.route = namespaceRoute as unknown as Namespace['route'];
+

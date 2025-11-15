@@ -1,6 +1,6 @@
 import type { Application } from 'egg';
 import debug from 'debug';
-import type { LoadedMiddleware, LoadedController } from './types.js';
+import type { LoadedMiddleware, LoadedController } from '../types.js';
 import { getIoLoadDirs } from './ioLoadDirs.js';
 
 // CustomMiddleware and CustomController are declared in typings/index.d.ts

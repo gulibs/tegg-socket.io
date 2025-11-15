@@ -10,7 +10,7 @@ import compose from 'koa-compose';
 import { loadControllersAndMiddleware } from './lib/loader.js';
 import { connectionMiddlewareInit } from './lib/connectionMiddlewareInit.js';
 import { packetMiddlewareInit, CtxEventSymbol } from './lib/packetMiddlewareInit.js';
-import { RouterConfigSymbol } from './lib/types.js';
+import { RouterConfigSymbol } from './types.js';
 import type {
   SocketIOMiddleware,
   ComposedSocketIOMiddleware,
@@ -20,7 +20,7 @@ import type {
   SocketIOPacket,
   ExtendedIncomingMessage,
   LoadedMiddleware,
-} from './lib/types.js';
+} from './types.js';
 import debug from 'debug';
 
 const debugLog = debug('tegg-socket.io:lib:boot');

@@ -1,5 +1,5 @@
 import { Server } from '../../lib/socket.io/index.js';
-import type { LoadedMiddleware, LoadedController } from '../../lib/types.js';
+import type { RuntimeSocketIOServer, LoadedMiddleware, LoadedController } from '../../types.js';
 import debug from 'debug';
 
 const debugLog = debug('tegg-socket.io:app:extend:application');
@@ -14,14 +14,14 @@ const SocketIOSymbol = Symbol.for('TEGG-SOCKET.IO#IO');
  * The framework merges this object into the Application prototype.
  */
 export default {
-  get io(): Server & { middleware: LoadedMiddleware; controller: LoadedController } {
+  get io(): RuntimeSocketIOServer {
     // 'this' refers to the Application instance in Egg.js extensions
     // Use type assertion to access Symbol property
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const app = this as any;
     if (!app[SocketIOSymbol]) {
       debugLog('[tegg-socket.io] create SocketIO instance!');
-      app[SocketIOSymbol] = new Server() as Server & { middleware: LoadedMiddleware; controller: LoadedController };
+      app[SocketIOSymbol] = new Server() as RuntimeSocketIOServer;
       app[SocketIOSymbol].serveClient(false);
       // Initialize controller and middleware objects
       app[SocketIOSymbol].controller = {} as LoadedController;
