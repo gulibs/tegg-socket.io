@@ -279,27 +279,149 @@ Controllers have access to:
 - `this.config` - Configuration
 - `this.logger` - Logger instance
 
-## TypeScript Type Definitions
+## TypeScript Support
 
-### Extend Custom Middleware Types
+This plugin provides full TypeScript support with two approaches for type generation:
 
-```typescript
-// {app_root}/typings/index.d.ts
-import 'egg';
+### Option 1: Automatic Type Generation with egg-ts-helper (Recommended) ✨
 
-declare module 'egg' {
-  interface CustomMiddleware {
-    auth: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
-    filter: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
+[egg-ts-helper](https://github.com/eggjs/egg-ts-helper) can automatically generate type definitions for your Socket.IO controllers and middleware.
+
+#### Setup
+
+1. **Ensure egg-ts-helper is installed** (most Egg.js + TypeScript projects already have it):
+
+```bash
+npm install egg-ts-helper --save-dev
+```
+
+2. **Configure `tshelper.json`** in your project root:
+
+```json
+{
+  "generatorConfig": {
+    "io/middleware": {
+      "directory": "app/io/middleware",
+      "pattern": "**/*.(ts|js)",
+      "generator": "function",
+      "interface": "CustomMiddleware",
+      "enabled": true,
+      "caseStyle": "camel",
+      "declareTo": "Application.io.middleware"
+    },
+    "io/controller": {
+      "directory": "app/io/controller",
+      "pattern": "**/*.(ts|js)",
+      "generator": "class",
+      "interface": "CustomController",
+      "enabled": true,
+      "caseStyle": "camel",
+      "declareTo": "Application.io.controller"
+    }
   }
 }
 ```
 
-### Extend Custom Controller Types
+**Note**: The plugin includes this configuration in `tshelper.json`. You can copy it directly to your project.
+
+3. **Start development with type generation**:
+
+```bash
+npm run dev  # egg-ts-helper runs automatically with egg-bin dev
+```
+
+Or manually generate types:
+
+```bash
+npx ets        # Generate once
+npx ets -w     # Watch mode
+```
+
+#### Usage Example
+
+With egg-ts-helper, you don't need to manually declare types:
 
 ```typescript
-// {app_root}/typings/index.d.ts
-import 'egg';
+// app/io/middleware/auth.ts
+// ✅ No manual type declaration needed!
+export default function auth() {
+  return async (ctx, next) => {
+    const token = ctx.socket.handshake.headers.authorization;
+    if (!token) {
+      ctx.socket.disconnect();
+      return;
+    }
+    await next();
+  };
+}
+```
+
+```typescript
+// app/io/controller/chat.ts
+// ✅ No manual type declaration needed!
+import { Controller } from 'egg';
+
+export default class ChatController extends Controller {
+  async message() {
+    // Access Socket.IO arguments safely
+    const data = this.ctx.args![0];
+    this.app.io.emit('message', data);
+  }
+}
+```
+
+egg-ts-helper will automatically generate `typings/app/io/index.d.ts` with:
+
+```typescript
+declare module 'egg' {
+  interface CustomMiddleware {
+    auth: typeof auth;
+  }
+
+  interface CustomController {
+    chat: typeof ChatController;
+  }
+}
+```
+
+Now you get full IntelliSense:
+
+```typescript
+app.io.middleware.auth         // ✅ Type-safe
+app.io.controller.chat         // ✅ Type-safe
+this.ctx.args                  // ✅ Type-safe (unknown[])
+this.ctx.socket                // ✅ Type-safe
+```
+
+### Option 2: Manual Type Declaration
+
+If you prefer not to use egg-ts-helper, you can manually declare types:
+
+#### Extend Middleware Types
+
+```typescript
+// app/io/middleware/auth.ts
+import { Application, Context } from 'egg';
+
+declare module 'egg' {
+  interface CustomMiddleware {
+    auth: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
+  }
+}
+
+export default function auth(app: Application) {
+  return async (ctx: Context, next: () => Promise<void>) => {
+    // Your auth logic
+    await next();
+  };
+}
+```
+
+#### Extend Controller Types
+
+```typescript
+// app/io/controller/chat.ts
+import { Controller } from 'egg';
 
 declare module 'egg' {
   interface CustomController {
@@ -307,16 +429,40 @@ declare module 'egg' {
   }
 }
 
-### Auto-generate Socket.IO typings
-
-`@gulibs/tegg-socket.io` ships an [`egg.tsHelper.generatorConfig`](https://github.com/eggjs/egg-ts-helper) entry. Running `npx ets` automatically scans `app/io/controller` and `app/io/middleware` and emits `typings/app/io/**/index.d.ts`, so `CustomController` and `CustomMiddleware` stay synchronized without manual typing files.
-
-1. Add `egg-ts-helper` as a dev dependency (or use `egg-bin dev --dts`, which bundles it).
-2. Run `npx ets` (or `npx ets -w`) whenever your IO controllers/middleware change.
-3. Keep the official workflow (`ets && tsc`, see `refers/docs/tegg文档/教程/TypeScript.md`) in CI scripts so generated declarations are always current.
-
-The generated files extend the interfaces defined in `src/typings/index.d.ts`, giving IDEs correct hints for `app.io.controller.*` and `app.io.middleware.*`.
+export default class ChatController extends Controller {
+  async message() {
+    const data = this.ctx.args![0];
+    this.app.io.emit('message', data);
+  }
+}
 ```
+
+### Context Type Extensions
+
+The plugin extends Egg's `Context` with Socket.IO-specific properties:
+
+```typescript
+interface Context {
+  socket?: Socket;   // Socket.IO socket instance
+  args?: unknown[];  // Message arguments from client
+}
+```
+
+Usage in controllers:
+
+```typescript
+export default class ChatController extends Controller {
+  async message() {
+    // Access socket
+    this.ctx.socket.emit('response', { success: true });
+
+    // Access message arguments (type assertion recommended)
+    const { text, userId } = this.ctx.args![0] as { text: string; userId: string };
+
+    // Or with destructuring
+    const [firstArg, secondArg] = this.ctx.args || [];
+  }
+}
 
 ## Deployment
 
@@ -325,13 +471,16 @@ The generated files extend the interfaces defined in `src/typings/index.d.ts`, g
 Socket.IO requires sticky sessions in cluster mode:
 
 ```bash
+
 egg-bin dev --sticky
 egg-scripts start --sticky
+
 ```
 
 ### Nginx Configuration
 
 ```nginx
+
 location / {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -339,6 +488,7 @@ location / {
     proxy_set_header Host $host;
     proxy_pass http://127.0.0.1:{your_node_server_port};
 }
+
 ```
 
 ## API Reference
@@ -348,6 +498,7 @@ location / {
 Socket.IO server instance.
 
 ```typescript
+
 // Get Socket.IO server
 const io = app.io;
 
@@ -356,6 +507,7 @@ const nsp = app.io.of('/');
 
 // Register route
 app.io.route('event', handler);
+
 ```
 
 ### `ctx.socket`
@@ -363,6 +515,7 @@ app.io.route('event', handler);
 Socket.IO socket instance available in middleware and controllers.
 
 ```typescript
+
 // Emit event
 ctx.socket.emit('event', data);
 
@@ -374,6 +527,7 @@ ctx.socket.leave('room');
 
 // Disconnect
 ctx.socket.disconnect();
+
 ```
 
 ## License

@@ -1,0 +1,22 @@
+{
+    "generatorConfig": {
+        "io/middleware": {
+            "directory": "app/io/middleware",
+            "pattern": "**/*.(ts|js)",
+            "generator": "function",
+            "interface": "CustomMiddleware",
+            "enabled": true,
+            "caseStyle": "camel",
+            "declareTo": "Application.io.middleware"
+        },
+        "io/controller": {
+            "directory": "app/io/controller",
+            "pattern": "**/*.(ts|js)",
+            "generator": "class",
+            "interface": "CustomController",
+            "enabled": true,
+            "caseStyle": "camel",
+            "declareTo": "Application.io.controller"
+        }
+    }
+}

@@ -279,27 +279,149 @@ export default (app: Application) => {
 - `this.config` - 配置对象
 - `this.logger` - Logger 实例
 
-## TypeScript 类型定义
+## TypeScript 支持
 
-### 扩展自定义中间件类型
+本插件提供完整的 TypeScript 支持，有两种类型生成方式：
 
-```typescript
-// {app_root}/typings/index.d.ts
-import 'egg';
+### 方式一：使用 egg-ts-helper 自动生成类型（推荐）✨
 
-declare module 'egg' {
-  interface CustomMiddleware {
-    auth: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
-    filter: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
+[egg-ts-helper](https://github.com/eggjs/egg-ts-helper) 可以自动为你的 Socket.IO 控制器和中间件生成类型定义。
+
+#### 配置步骤
+
+1. **确保已安装 egg-ts-helper**（大多数 Egg.js + TypeScript 项目已经安装）：
+
+```bash
+npm install egg-ts-helper --save-dev
+```
+
+2. **在项目根目录配置 `tshelper.json`**：
+
+```json
+{
+  "generatorConfig": {
+    "io/middleware": {
+      "directory": "app/io/middleware",
+      "pattern": "**/*.(ts|js)",
+      "generator": "function",
+      "interface": "CustomMiddleware",
+      "enabled": true,
+      "caseStyle": "camel",
+      "declareTo": "Application.io.middleware"
+    },
+    "io/controller": {
+      "directory": "app/io/controller",
+      "pattern": "**/*.(ts|js)",
+      "generator": "class",
+      "interface": "CustomController",
+      "enabled": true,
+      "caseStyle": "camel",
+      "declareTo": "Application.io.controller"
+    }
   }
 }
 ```
 
-### 扩展自定义控制器类型
+**注意**：本插件已包含此配置文件 `tshelper.json`，可以直接复制到你的项目中使用。
+
+3. **启动开发服务器并自动生成类型**：
+
+```bash
+npm run dev  # egg-ts-helper 会自动运行
+```
+
+或手动生成类型：
+
+```bash
+npx ets        # 生成一次
+npx ets -w     # 监听模式
+```
+
+#### 使用示例
+
+使用 egg-ts-helper 后，无需手动声明类型：
 
 ```typescript
-// {app_root}/typings/index.d.ts
-import 'egg';
+// app/io/middleware/auth.ts
+// ✅ 无需手动声明类型！
+export default function auth() {
+  return async (ctx, next) => {
+    const token = ctx.socket.handshake.headers.authorization;
+    if (!token) {
+      ctx.socket.disconnect();
+      return;
+    }
+    await next();
+  };
+}
+```
+
+```typescript
+// app/io/controller/chat.ts
+// ✅ 无需手动声明类型！
+import { Controller } from 'egg';
+
+export default class ChatController extends Controller {
+  async message() {
+    // 安全访问 Socket.IO 参数
+    const data = this.ctx.args![0];
+    this.app.io.emit('message', data);
+  }
+}
+```
+
+egg-ts-helper 会自动在 `typings/app/io/index.d.ts` 中生成：
+
+```typescript
+declare module 'egg' {
+  interface CustomMiddleware {
+    auth: typeof auth;
+  }
+
+  interface CustomController {
+    chat: typeof ChatController;
+  }
+}
+```
+
+现在你可以获得完整的 IntelliSense 支持：
+
+```typescript
+app.io.middleware.auth         // ✅ 类型安全
+app.io.controller.chat         // ✅ 类型安全
+this.ctx.args                  // ✅ 类型安全 (unknown[])
+this.ctx.socket                // ✅ 类型安全
+```
+
+### 方式二：手动声明类型
+
+如果你不想使用 egg-ts-helper，可以手动声明类型：
+
+#### 扩展中间件类型
+
+```typescript
+// app/io/middleware/auth.ts
+import { Application, Context } from 'egg';
+
+declare module 'egg' {
+  interface CustomMiddleware {
+    auth: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
+  }
+}
+
+export default function auth(app: Application) {
+  return async (ctx: Context, next: () => Promise<void>) => {
+    // 你的认证逻辑
+    await next();
+  };
+}
+```
+
+#### 扩展控制器类型
+
+```typescript
+// app/io/controller/chat.ts
+import { Controller } from 'egg';
 
 declare module 'egg' {
   interface CustomController {
@@ -307,16 +429,40 @@ declare module 'egg' {
   }
 }
 
-### 自动生成 Socket.IO 类型
-
-插件已经在 `package.json` 的 [`egg.tsHelper.generatorConfig`](https://github.com/eggjs/egg-ts-helper) 中注册了 `app/io/controller` 与 `app/io/middleware` 目录，执行 `npx ets` 时会自动生成 `typings/app/io/**/index.d.ts`，把所有控制器/中间件合并到 `CustomController`、`CustomMiddleware` 接口中。
-
-1. 安装 `egg-ts-helper`（或使用内置该工具的 `egg-bin dev --dts`）。
-2. 在开发或 CI 中运行 `npx ets`（或 `npx ets -w`）刷新类型文件。
-3. 参考 [TypeScript 指南](refers/docs/tegg文档/教程/TypeScript.md) 保持 `ets && tsc -p tsconfig.json` 的构建顺序，确保声明永远是最新的。
-
-生成的声明文件直接扩展 `src/typings/index.d.ts` 里的接口，因此 IDE 可以准确提示 `app.io.controller.*` 与 `app.io.middleware.*`。
+export default class ChatController extends Controller {
+  async message() {
+    const data = this.ctx.args![0];
+    this.app.io.emit('message', data);
+  }
+}
 ```
+
+### Context 类型扩展
+
+插件扩展了 Egg 的 `Context`，添加了 Socket.IO 相关属性：
+
+```typescript
+interface Context {
+  socket?: Socket;   // Socket.IO socket 实例
+  args?: unknown[];  // 客户端发送的消息参数
+}
+```
+
+在控制器中的使用：
+
+```typescript
+export default class ChatController extends Controller {
+  async message() {
+    // 访问 socket
+    this.ctx.socket.emit('response', { success: true });
+
+    // 访问消息参数（建议使用类型断言）
+    const { text, userId } = this.ctx.args![0] as { text: string; userId: string };
+
+    // 或使用解构
+    const [firstArg, secondArg] = this.ctx.args || [];
+  }
+}
 
 ## 部署
 
@@ -325,13 +471,16 @@ declare module 'egg' {
 Socket.IO 在集群模式下需要启用粘性会话：
 
 ```bash
+
 egg-bin dev --sticky
 egg-scripts start --sticky
+
 ```
 
 ### Nginx 配置
 
 ```nginx
+
 location / {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -339,6 +488,7 @@ location / {
     proxy_set_header Host $host;
     proxy_pass http://127.0.0.1:{your_node_server_port};
 }
+
 ```
 
 ## API 参考
@@ -348,6 +498,7 @@ location / {
 Socket.IO 服务器实例。
 
 ```typescript
+
 // 获取 Socket.IO 服务器
 const io = app.io;
 
@@ -356,6 +507,7 @@ const nsp = app.io.of('/');
 
 // 注册路由
 app.io.route('event', handler);
+
 ```
 
 ### `ctx.socket`
@@ -363,6 +515,7 @@ app.io.route('event', handler);
 在中间件和控制器中可用的 Socket.IO socket 实例。
 
 ```typescript
+
 // 发送事件
 ctx.socket.emit('event', data);
 
@@ -374,6 +527,7 @@ ctx.socket.leave('room');
 
 // 断开连接
 ctx.socket.disconnect();
+
 ```
 
 ## 许可证

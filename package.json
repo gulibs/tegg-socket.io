@@ -1,6 +1,6 @@
 {
   "name": "@gulibs/tegg-socket.io",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -99,7 +99,7 @@
     "src",
     "README.md",
     "README.zh_CN.md",
-    ".egg_ts_helper.json"
+    "tshelper.json"
   ],
   "types": "./dist/commonjs/index.d.ts",
   "main": "./dist/commonjs/index.js",

@@ -92,6 +92,19 @@ declare module '@eggjs/core' {
      * Available in Socket.IO middleware and controllers
      */
     socket?: Socket;
+    /**
+     * Socket.IO message arguments
+     * Contains the data sent from client in socket events
+     * @example
+     * ```ts
+     * // Client sends: socket.emit('message', { text: 'hello' })
+     * // Server receives:
+     * async message() {
+     *   const data = this.ctx.args![0]; // { text: 'hello' }
+     * }
+     * ```
+     */
+    args?: unknown[];
   }
 
   interface SocketIOServer extends Server {
