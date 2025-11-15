@@ -1,9 +1,15 @@
+dist
+markdown
+refers
 logs/
 npm-debug.log
 node_modules/
 coverage/
+openspec/
 .idea/
 run/
 .DS_Store
+.cursor/
+.tshy/
 *.swp
 
