@@ -1,27 +1,27 @@
-import http from 'node:http';
-import assert from 'node:assert';
+import type { ILifecycleBoot } from '@eggjs/core';
+import debug from 'debug';
+import type { Application, Context } from 'egg';
 import is from 'is-type-of';
 import type { Middleware as KoaMiddleware } from 'koa-compose';
-import type { EggCore, ILifecycleBoot } from '@eggjs/core';
-import type { Application, Context } from 'egg';
-import type { Server as HTTPServer } from 'node:http';
-import type { Socket } from 'socket.io';
 import compose from 'koa-compose';
-import { loadControllersAndMiddleware } from './lib/loader.js';
+import assert from 'node:assert';
+import type { Server as HTTPServer } from 'node:http';
+import http from 'node:http';
+import type { Socket } from 'socket.io';
 import { connectionMiddlewareInit } from './lib/connectionMiddlewareInit.js';
-import { packetMiddlewareInit, CtxEventSymbol } from './lib/packetMiddlewareInit.js';
-import { RouterConfigSymbol } from './types.js';
+import { loadControllersAndMiddleware } from './lib/loader.js';
+import { CtxEventSymbol, packetMiddlewareInit } from './lib/packetMiddlewareInit.js';
 import type {
-  SocketIOMiddleware,
   ComposedSocketIOMiddleware,
-  ExtendedNamespace,
-  SocketIOContext,
-  SessionMiddleware,
-  SocketIOPacket,
   ExtendedIncomingMessage,
+  ExtendedNamespace,
   LoadedMiddleware,
+  SessionMiddleware,
+  SocketIOContext,
+  SocketIOMiddleware,
+  SocketIOPacket,
 } from './types.js';
-import debug from 'debug';
+import { RouterConfigSymbol } from './types.js';
 
 const debugLog = debug('tegg-socket.io:lib:boot');
 
