@@ -1,8 +1,10 @@
 # @gulibs/tegg-socket.io
 
-> [English](README.md) | [中文](README.zh_CN.md)
+![NPM version](https://img.shields.io/npm/v/@gulibs/tegg-socket.io.svg?style=flat-square)
 
-基于 TypeScript 的 Egg.js/Tegg 框架 Socket.IO 插件。
+> [English](README.md)
+
+基于 TypeScript 的 Tegg 运行时 Socket.IO 插件。
 
 ## 特性
 
@@ -17,7 +19,7 @@
 ## 要求
 
 - Node.js >= 18.19.0
-- Egg.js >= 4.0
+- Tegg 运行时（`@eggjs/core` >= 6.2）
 
 ## 安装
 
@@ -270,7 +272,7 @@ export default (app: Application) => {
 
 控制器可以访问以下属性：
 
-- `this.ctx` - Egg.js Context 对象
+- `this.ctx` - 应用 Context 对象
 - `this.ctx.socket` - Socket.IO socket 实例
 - `this.ctx.args` - 事件参数数组
 - `this.ctx.packet` - Socket.IO 包（在包中间件中可用）
@@ -283,19 +285,19 @@ export default (app: Application) => {
 
 本插件提供完整的 TypeScript 支持，有两种类型生成方式：
 
-### 方式一：使用 egg-ts-helper 自动生成类型（推荐）✨
+### 方式一：使用 `ets` 自动生成类型（推荐）✨
 
-[egg-ts-helper](https://github.com/eggjs/egg-ts-helper) 可以自动为你的 Socket.IO 控制器和中间件生成类型定义。
+[`ets` CLI](https://www.npmjs.com/package/egg-ts-helper) 可以自动为你的 Socket.IO 控制器和中间件生成类型定义。
 
 #### 配置步骤
 
-1. **确保已安装 egg-ts-helper**（大多数 Egg.js + TypeScript 项目已经安装）：
+1. **安装 CLI**（大多数 Tegg + TypeScript 项目已经安装）：
 
 ```bash
 npm install egg-ts-helper --save-dev
 ```
 
-2. **直接使用插件提供的配置运行 egg-ts-helper**（无需复制文件）：
+2. **直接使用插件提供的配置运行 `ets`**（无需复制文件）：
 
 ```bash
 npx ets --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
@@ -316,7 +318,7 @@ npx ets -w     # 监听模式
 
 #### 使用示例
 
-使用 egg-ts-helper 后，无需手动声明类型：
+使用 `ets` 后，无需手动声明类型：
 
 ```typescript
 // app/io/middleware/auth.ts
@@ -347,7 +349,7 @@ export default class ChatController extends Controller {
 }
 ```
 
-egg-ts-helper 会自动在 `typings/app/io/index.d.ts` 中生成：
+生成脚本会自动在 `typings/app/io/index.d.ts` 中生成：
 
 ```typescript
 declare module 'egg' {
@@ -511,6 +513,10 @@ ctx.socket.leave('room');
 ctx.socket.disconnect();
 
 ```
+
+## 支持与问题
+
+如需反馈问题或提交功能需求，请前往 [gulibs/tegg-socket.io issues](https://github.com/gulibs/tegg-socket.io/issues)。
 
 ## 许可证
 

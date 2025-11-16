@@ -1,6 +1,6 @@
 {
   "name": "@gulibs/tegg-socket.io",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -15,11 +15,10 @@
     }
   },
   "keywords": [
-    "egg",
-    "eggPlugin",
-    "egg-plugin",
-    "egg-tegg-socket.io",
-    "teggSocketIO"
+    "tegg",
+    "socket.io",
+    "plugin",
+    "gulibs"
   ],
   "repository": {
     "type": "git",

@@ -1,10 +1,7 @@
 import { Server } from '../../lib/socket.io/index.js';
-import type { RuntimeSocketIOServer, LoadedMiddleware, LoadedController } from '../../types.js';
-import debug from 'debug';
+import type { RuntimeSocketIOServer } from '../../types.js';
 import type { Application } from 'egg';
-import { ensureIoCollectionsLoaded } from '../../lib/loader.js';
 
-const debugLog = debug('tegg-socket.io:app:extend:application');
 const SocketIOSymbol = Symbol.for('TEGG-SOCKET.IO#IO');
 
 /**
@@ -19,17 +16,13 @@ export default {
   get io(): RuntimeSocketIOServer {
     const app = this as unknown as Application & { [SocketIOSymbol]?: RuntimeSocketIOServer };
     if (!app[SocketIOSymbol]) {
-      debugLog('[tegg-socket.io] create SocketIO instance!');
+      app.logger.info('[tegg-socket.io] create SocketIO instance!');
       app[SocketIOSymbol] = new Server() as RuntimeSocketIOServer;
       app[SocketIOSymbol]!.serveClient(false);
-      // Initialize controller and middleware objects
-      app[SocketIOSymbol]!.controller = {} as LoadedController;
-      app[SocketIOSymbol]!.middleware = {} as LoadedMiddleware;
+      // Do NOT initialize controller and middleware here - let loader do it
+      // This matches egg-socket.io reference implementation
     }
 
-    const ioServer = app[SocketIOSymbol]!;
-    ensureIoCollectionsLoaded(app, ioServer);
-    return ioServer;
+    return app[SocketIOSymbol]!;
   },
 };
-

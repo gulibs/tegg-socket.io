@@ -10,18 +10,19 @@ import http from 'node:http';
 import type { Socket } from 'socket.io';
 import { connectionMiddlewareInit } from './lib/connectionMiddlewareInit.js';
 import { CtxEventSymbol, packetMiddlewareInit } from './lib/packetMiddlewareInit.js';
+import { ensureIoCollectionsLoaded } from './lib/loader.js';
 import type {
   ComposedSocketIOMiddleware,
   ExtendedIncomingMessage,
   ExtendedNamespace,
   LoadedMiddleware,
+  RuntimeSocketIOServer,
   SessionMiddleware,
   SocketIOContext,
   SocketIOMiddleware,
   SocketIOPacket,
 } from './types.js';
 import { RouterConfigSymbol } from './types.js';
-import { ensureIoCollectionsLoaded } from './lib/loader.js';
 
 const debugLog = debug('tegg-socket.io:lib:boot');
 
@@ -49,11 +50,27 @@ function toKoaMiddleware(mw: SocketIOMiddleware): KoaMiddleware<Context> {
   return mw as unknown as KoaMiddleware<Context>;
 }
 
+const LoadRouterWrappedSymbol = Symbol.for('TEGG-SOCKET.IO#WRAPPED_LOAD_ROUTER');
+
 export class SocketIOBootHook implements ILifecycleBoot {
   private readonly app: Application;
 
   constructor(app: Application) {
+    debugLog('[tegg-socket.io] SocketIOBootHook constructor called');
     this.app = app;
+    const flagApp = app as Application & { [LoadRouterWrappedSymbol]?: boolean };
+    if (!flagApp[LoadRouterWrappedSymbol]) {
+      const originalLoadRouter = app.loader.loadRouter.bind(app.loader);
+      app.loader.loadRouter = async (...args: Parameters<typeof originalLoadRouter>) => {
+        debugLog('[tegg-socket.io] loadRouter hook triggered, accessing app.io...');
+        const ioServer = this.app.io as RuntimeSocketIOServer;
+        await ensureIoCollectionsLoaded(this.app, ioServer);
+        debugLog('[tegg-socket.io] app.io ensured before loadRouter, app.io.controller = %o', this.app.io.controller);
+        return originalLoadRouter(...args);
+      };
+      flagApp[LoadRouterWrappedSymbol] = true;
+      debugLog('[tegg-socket.io] hooked loadRouter to ensure IO collections ready');
+    }
   }
 
   /**
@@ -61,17 +78,11 @@ export class SocketIOBootHook implements ILifecycleBoot {
    * Load controllers and middleware before router is loaded
    * This ensures app.io.controller and app.io.middleware are available in router files
    */
-  configDidLoad() {
-    ensureIoCollectionsLoaded(this.app);
-  }
-
-  /**
-   * Did load hook
-   * This hook is kept for future extension logic if needed
-   */
-  async didLoad() {
-    // Controllers and middleware are now loaded in configDidLoad
-    // This matches the traditional Egg.js plugin pattern
+  async configDidLoad() {
+    debugLog('[tegg-socket.io] configDidLoad hook called');
+    const ioServer = this.app.io as RuntimeSocketIOServer;
+    await ensureIoCollectionsLoaded(this.app, ioServer);
+    debugLog('[tegg-socket.io] configDidLoad finished, app.io.controller = %o', this.app.io.controller);
   }
 
   /**
@@ -79,10 +90,11 @@ export class SocketIOBootHook implements ILifecycleBoot {
    * Initialize namespaces and middleware before application is ready
    */
   async willReady() {
+    this.app.logger.info('[tegg-socket.io] init started.');
+    const ioServer = this.app.io as RuntimeSocketIOServer;
+    await ensureIoCollectionsLoaded(this.app, ioServer);
     const config = this.app.config.teggSocketIO;
     const namespace = config.namespace || {};
-
-    debugLog('[tegg-socket.io] init start!');
 
     // Initialize namespaces
     for (const nsp in namespace) {
@@ -170,14 +182,14 @@ export class SocketIOBootHook implements ILifecycleBoot {
         });
       }
       this.app.io.adapter(adapter);
-      debugLog('[tegg-socket.io] init socket.io-redis ready!');
+      this.app.logger.info('[tegg-socket.io] init socket.io-redis ready.');
     }
 
     // Register server event listener for Socket.IO attachment
     // This must be registered before server is created
     // Type assertion needed because EggCore doesn't have 'on' method in types
     // but Application does, and actual instance is Application
-    (this.app as unknown as Application).on('server', (server: HTTPServer) => {
+    this.app.on('server', (server: HTTPServer) => {
       this.app.io.attach(server, config.init);
 
       // Check whether it's a common function, it shouldn't be

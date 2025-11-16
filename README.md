@@ -1,8 +1,10 @@
 # @gulibs/tegg-socket.io
 
-> [English](README.md) | [中文](README.zh_CN.md)
+![NPM version](https://img.shields.io/npm/v/@gulibs/tegg-socket.io.svg?style=flat-square)
 
-Socket.IO plugin for Egg.js/Tegg framework with TypeScript support.
+> [中文文档](README.zh_CN.md)
+
+Socket.IO plugin for the Tegg runtime with first-class TypeScript support.
 
 ## Features
 
@@ -17,7 +19,7 @@ Socket.IO plugin for Egg.js/Tegg framework with TypeScript support.
 ## Requirements
 
 - Node.js >= 18.19.0
-- Egg.js >= 4.0
+- Tegg runtime (`@eggjs/core` >= 6.2)
 
 ## Install
 
@@ -270,7 +272,7 @@ export default (app: Application) => {
 
 Controllers have access to:
 
-- `this.ctx` - Egg.js Context object
+- `this.ctx` - application Context object
 - `this.ctx.socket` - Socket.IO socket instance
 - `this.ctx.args` - Event arguments array
 - `this.ctx.packet` - Socket.IO packet (in packet middleware)
@@ -283,19 +285,19 @@ Controllers have access to:
 
 This plugin provides full TypeScript support with two approaches for type generation:
 
-### Option 1: Automatic Type Generation with egg-ts-helper (Recommended) ✨
+### Option 1: Automatic Type Generation with `ets` (Recommended) ✨
 
-[egg-ts-helper](https://github.com/eggjs/egg-ts-helper) can automatically generate type definitions for your Socket.IO controllers and middleware.
+Use the [`ets` CLI](https://www.npmjs.com/package/egg-ts-helper) to automatically generate type definitions for your Socket.IO controllers and middleware.
 
 #### Setup
 
-1. **Ensure egg-ts-helper is installed** (most Egg.js + TypeScript projects already have it):
+1. **Install the CLI** (most Tegg + TypeScript projects already have it):
 
 ```bash
 npm install egg-ts-helper --save-dev
 ```
 
-2. **Run egg-ts-helper with the plugin-provided config** (no files to copy):
+2. **Run the generator with the plugin-provided config** (no files to copy):
 
 ```bash
 npx ets --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
@@ -316,7 +318,7 @@ npx ets -w     # Watch mode
 
 #### Usage Example
 
-With egg-ts-helper, you don't need to manually declare types:
+With `ets`, you don't need to manually declare types:
 
 ```typescript
 // app/io/middleware/auth.ts
@@ -347,7 +349,7 @@ export default class ChatController extends Controller {
 }
 ```
 
-egg-ts-helper will automatically generate `typings/app/io/index.d.ts` with:
+The generator will produce `typings/app/io/index.d.ts` with:
 
 ```typescript
 declare module 'egg' {
@@ -371,6 +373,7 @@ this.ctx.socket                // ✅ Type-safe
 ```
 
 #### Router Initialization Safety
+
 - The plugin preloads controllers and middleware before router files run, and also hooks the router loader so a router access triggers loading if it somehow happens first.
 - It's safe to reference `app.io.controller.*` or `app.io.middleware.*` inside `app/router.ts` (even during module evaluation); the loader hook guarantees the objects exist before your code touches them.
 
@@ -420,7 +423,7 @@ export default class ChatController extends Controller {
 
 ### Context Type Extensions
 
-The plugin extends Egg's `Context` with Socket.IO-specific properties:
+The plugin extends the application `Context` with Socket.IO-specific properties:
 
 ```typescript
 interface Context {
@@ -510,6 +513,10 @@ ctx.socket.leave('room');
 ctx.socket.disconnect();
 
 ```
+
+## Support & Issues
+
+Please use the [gulibs/tegg-socket.io issue tracker](https://github.com/gulibs/tegg-socket.io/issues) for questions or bug reports.
 
 ## License
 
