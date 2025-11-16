@@ -295,39 +295,16 @@ This plugin provides full TypeScript support with two approaches for type genera
 npm install egg-ts-helper --save-dev
 ```
 
-2. **Configure `tshelper.json`** in your project root:
-
-```json
-{
-  "generatorConfig": {
-    "io/middleware": {
-      "directory": "app/io/middleware",
-      "pattern": "**/*.(ts|js)",
-      "generator": "function",
-      "interface": "CustomMiddleware",
-      "enabled": true,
-      "caseStyle": "camel",
-      "declareTo": "Application.io.middleware"
-    },
-    "io/controller": {
-      "directory": "app/io/controller",
-      "pattern": "**/*.(ts|js)",
-      "generator": "class",
-      "interface": "CustomController",
-      "enabled": true,
-      "caseStyle": "camel",
-      "declareTo": "Application.io.controller"
-    }
-  }
-}
-```
-
-**Note**: The plugin includes this configuration in `tshelper.json`. You can copy it directly to your project.
-
-3. **Start development with type generation**:
+2. **Run egg-ts-helper with the plugin-provided config** (no files to copy):
 
 ```bash
-npm run dev  # egg-ts-helper runs automatically with egg-bin dev
+npx ets --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
+```
+
+3. **Watch & regenerate automatically** (optional):
+
+```bash
+npx ets -w --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
 ```
 
 Or manually generate types:
@@ -392,6 +369,10 @@ app.io.controller.chat         // ✅ Type-safe
 this.ctx.args                  // ✅ Type-safe (unknown[])
 this.ctx.socket                // ✅ Type-safe
 ```
+
+#### Router Initialization Safety
+- The plugin preloads controllers and middleware before router files run, and also hooks the router loader so a router access triggers loading if it somehow happens first.
+- It's safe to reference `app.io.controller.*` or `app.io.middleware.*` inside `app/router.ts` (even during module evaluation); the loader hook guarantees the objects exist before your code touches them.
 
 ### Option 2: Manual Type Declaration
 

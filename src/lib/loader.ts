@@ -1,6 +1,6 @@
 import type { Application } from 'egg';
 import debug from 'debug';
-import type { LoadedMiddleware, LoadedController } from '../types.js';
+import type { LoadedMiddleware, LoadedController, RuntimeSocketIOServer } from '../types.js';
 import { getIoLoadDirs } from './ioLoadDirs.js';
 
 // CustomMiddleware and CustomController are declared in typings/index.d.ts
@@ -15,11 +15,14 @@ const debugLog = debug('tegg-socket.io:lib:loader');
  * Load controllers and middleware using Tegg-compatible FileLoader pattern
  * This matches the approach used in tegg-wss
  */
-export function loadControllersAndMiddleware(app: Application): void {
+const IoCollectionsLoadedSymbol = Symbol.for('TEGG-SOCKET.IO#IO_COLLECTIONS_LOADED');
+
+export function loadControllersAndMiddleware(app: Application, runtimeServer?: RuntimeSocketIOServer): void {
   const { loader } = app;
   const { FileLoader } = loader;
   const { controllerDirs, middlewareDirs } = getIoLoadDirs(app);
-  const ioServer = app.io as unknown as {
+  debugLog('[tegg-socket.io] middleware dirs: %o', middlewareDirs);
+  const ioServer = (runtimeServer ?? (app.io as RuntimeSocketIOServer)) as unknown as {
     middleware: LoadedMiddlewareDictionary;
     controller: LoadedControllerDictionary;
   };
@@ -56,6 +59,7 @@ export function loadControllersAndMiddleware(app: Application): void {
   // Use type assertion to access LoadedController for FileLoader
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controllerTarget = ioServer.controller as unknown as LoadedControllerDictionary;
+  debugLog('[tegg-socket.io] controller dirs: %o', controllerDirs);
   loader.loadController({
     directory: controllerDirs,
     target: controllerTarget,
@@ -66,5 +70,13 @@ export function loadControllersAndMiddleware(app: Application): void {
   ioServer.controller = controllerTarget;
 
   debugLog('[tegg-socket.io] app.io.controller: %o', app.io.controller);
+}
+
+export function ensureIoCollectionsLoaded(app: Application, runtimeServer?: RuntimeSocketIOServer): void {
+  const flagApp = app as Application & { [IoCollectionsLoadedSymbol]?: boolean };
+  if (flagApp[IoCollectionsLoadedSymbol]) return;
+  loadControllersAndMiddleware(app, runtimeServer);
+  flagApp[IoCollectionsLoadedSymbol] = true;
+  debugLog('[tegg-socket.io] controllers/middleware are ready');
 }
 

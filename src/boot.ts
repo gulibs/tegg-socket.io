@@ -9,7 +9,6 @@ import type { Server as HTTPServer } from 'node:http';
 import http from 'node:http';
 import type { Socket } from 'socket.io';
 import { connectionMiddlewareInit } from './lib/connectionMiddlewareInit.js';
-import { loadControllersAndMiddleware } from './lib/loader.js';
 import { CtxEventSymbol, packetMiddlewareInit } from './lib/packetMiddlewareInit.js';
 import type {
   ComposedSocketIOMiddleware,
@@ -22,6 +21,7 @@ import type {
   SocketIOPacket,
 } from './types.js';
 import { RouterConfigSymbol } from './types.js';
+import { ensureIoCollectionsLoaded } from './lib/loader.js';
 
 const debugLog = debug('tegg-socket.io:lib:boot');
 
@@ -49,10 +49,6 @@ function toKoaMiddleware(mw: SocketIOMiddleware): KoaMiddleware<Context> {
   return mw as unknown as KoaMiddleware<Context>;
 }
 
-/**
- * Socket.IO Boot Hook
- * Implements ILifecycleBoot interface for modern Tegg plugin pattern
- */
 export class SocketIOBootHook implements ILifecycleBoot {
   private readonly app: Application;
 
@@ -66,11 +62,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
    * This ensures app.io.controller and app.io.middleware are available in router files
    */
   configDidLoad() {
-    // Load controllers and middleware using FileLoader pattern
-    // app.io is now defined in app/extend/application.ts (loaded before boot.ts)
-    // Type assertion needed because EggCore doesn't have all Application properties
-    // but loadControllersAndMiddleware only needs the loader property
-    loadControllersAndMiddleware(this.app);
+    ensureIoCollectionsLoaded(this.app);
   }
 
   /**

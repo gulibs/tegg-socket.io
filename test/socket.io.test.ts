@@ -251,6 +251,35 @@ describe('test/socket.io.test.ts', () => {
         done(err);
       });
     });
+
+    it('should load controllers before router definitions execute', done => {
+      const app = mm.cluster({
+        baseDir: 'apps/socket.io-controller-router',
+        workers: 1,
+      });
+      apps.push(app);
+      app.ready().then(() => {
+        const socket = client('', { port: basePort });
+        let receivedAuth = false;
+        socket.on('connect', () => {
+          socket.emit('join-organization', { organizationId: 'acme' });
+        });
+        socket.on('auth-check', () => {
+          receivedAuth = true;
+        });
+        socket.on('joined-organization', payload => {
+          assert(receivedAuth === true);
+          assert(payload.organizationId === 'acme');
+          socket.close();
+        });
+        socket.on('disconnect', () => {
+          app.close().then(done, done);
+        });
+      }).catch((err: Error) => {
+        app.close().catch(() => {});
+        done(err);
+      });
+    });
   });
 
   describe('Namespace Management', () => {

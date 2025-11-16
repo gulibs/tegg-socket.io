@@ -295,39 +295,16 @@ export default (app: Application) => {
 npm install egg-ts-helper --save-dev
 ```
 
-2. **在项目根目录配置 `tshelper.json`**：
-
-```json
-{
-  "generatorConfig": {
-    "io/middleware": {
-      "directory": "app/io/middleware",
-      "pattern": "**/*.(ts|js)",
-      "generator": "function",
-      "interface": "CustomMiddleware",
-      "enabled": true,
-      "caseStyle": "camel",
-      "declareTo": "Application.io.middleware"
-    },
-    "io/controller": {
-      "directory": "app/io/controller",
-      "pattern": "**/*.(ts|js)",
-      "generator": "class",
-      "interface": "CustomController",
-      "enabled": true,
-      "caseStyle": "camel",
-      "declareTo": "Application.io.controller"
-    }
-  }
-}
-```
-
-**注意**：本插件已包含此配置文件 `tshelper.json`，可以直接复制到你的项目中使用。
-
-3. **启动开发服务器并自动生成类型**：
+2. **直接使用插件提供的配置运行 egg-ts-helper**（无需复制文件）：
 
 ```bash
-npm run dev  # egg-ts-helper 会自动运行
+npx ets --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
+```
+
+3. **需要监听时可启用 watch 模式**：
+
+```bash
+npx ets -w --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
 ```
 
 或手动生成类型：
@@ -392,6 +369,11 @@ app.io.controller.chat         // ✅ 类型安全
 this.ctx.args                  // ✅ 类型安全 (unknown[])
 this.ctx.socket                // ✅ 类型安全
 ```
+
+#### 路由初始化安全性
+
+- 插件会在路由文件运行之前预加载 `app/io/controller` 与 `app/io/middleware`，并在必要时拦截路由加载过程确保最早访问也能触发加载。
+- 因此可以放心在 `app/router.ts` 中直接访问 `app.io.controller.*` 或 `app.io.middleware.*`，不会再出现 `undefined` 的问题。
 
 ### 方式二：手动声明类型
 

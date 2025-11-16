@@ -9,7 +9,7 @@ const debugLog = debug('tegg-socket.io:lib:socket.io:namespace');
 
 type RouteAwareNamespace = Namespace & { [RouterConfigSymbol]?: Map<string, RouteHandler> };
 
-const namespaceRoute = function (
+const namespaceRoute = function(
   this: RouteAwareNamespace,
   event: string,
   handler: RouteHandler,

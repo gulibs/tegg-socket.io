@@ -3,7 +3,7 @@ import './namespace.js';
 import './socket.js';
 import type { RouteHandler } from '../../types.js';
 
-const serverRoute = function (this: Server, event: string, handler: RouteHandler): void {
+const serverRoute = function(this: Server, event: string, handler: RouteHandler): void {
   this.sockets.route(event, handler);
 };
 
