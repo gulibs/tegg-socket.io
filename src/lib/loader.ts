@@ -75,8 +75,13 @@ export function loadControllersAndMiddleware(app: Application, runtimeServer?: R
 export function ensureIoCollectionsLoaded(app: Application, runtimeServer?: RuntimeSocketIOServer): void {
   const flagApp = app as Application & { [IoCollectionsLoadedSymbol]?: boolean };
   if (flagApp[IoCollectionsLoadedSymbol]) return;
-  loadControllersAndMiddleware(app, runtimeServer);
   flagApp[IoCollectionsLoadedSymbol] = true;
-  debugLog('[tegg-socket.io] controllers/middleware are ready');
+  try {
+    loadControllersAndMiddleware(app, runtimeServer);
+    debugLog('[tegg-socket.io] controllers/middleware are ready');
+  } catch (err) {
+    flagApp[IoCollectionsLoadedSymbol] = false;
+    throw err;
+  }
 }
 
