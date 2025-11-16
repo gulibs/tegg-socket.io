@@ -54,9 +54,9 @@ function toKoaMiddleware(mw: SocketIOMiddleware): KoaMiddleware<Context> {
  * Implements ILifecycleBoot interface for modern Tegg plugin pattern
  */
 export class SocketIOBootHook implements ILifecycleBoot {
-  private readonly app: EggCore;
+  private readonly app: Application;
 
-  constructor(app: EggCore) {
+  constructor(app: Application) {
     this.app = app;
   }
 
@@ -70,7 +70,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
     // app.io is now defined in app/extend/application.ts (loaded before boot.ts)
     // Type assertion needed because EggCore doesn't have all Application properties
     // but loadControllersAndMiddleware only needs the loader property
-    loadControllersAndMiddleware(this.app as unknown as Application);
+    loadControllersAndMiddleware(this.app);
   }
 
   /**
@@ -134,7 +134,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
 
       // Find session middleware if available
       // Type assertion needed because EggCore doesn't expose middleware array directly
-      const app = this.app as unknown as Application;
+      const app = this.app;
       const sessionMiddleware = (app.middleware || []).find((mw: unknown) => {
         return typeof mw === 'function' && (mw as { _name?: string })._name?.startsWith('session') === true;
       }) as SessionMiddleware | undefined;
@@ -225,7 +225,7 @@ export class SocketIOBootHook implements ILifecycleBoot {
               debugLog('[tegg-socket.io] socket closed: %o', args);
               const request = socket.request as unknown as ExtendedIncomingMessage & http.IncomingMessage;
               (request as ExtendedIncomingMessage).socket = socket;
-              const ctx = app.createContext(request as http.IncomingMessage, new http.ServerResponse(request as http.IncomingMessage)) as SocketIOContext;
+              const ctx = app.createContext(request as http.IncomingMessage, new http.ServerResponse(request as http.IncomingMessage)) as unknown as SocketIOContext;
               ctx.args = args;
               Promise.resolve(handler.call(ctx as unknown as Context))
                 .catch((e: Error) => {

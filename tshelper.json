@@ -6,8 +6,7 @@
             "generator": "function",
             "interface": "CustomMiddleware",
             "enabled": true,
-            "caseStyle": "camel",
-            "declareTo": "Application.io.middleware"
+            "caseStyle": "camel"
         },
         "io/controller": {
             "directory": "app/io/controller",
@@ -15,8 +14,7 @@
             "generator": "class",
             "interface": "CustomController",
             "enabled": true,
-            "caseStyle": "camel",
-            "declareTo": "Application.io.controller"
+            "caseStyle": "camel"
         }
     }
 }

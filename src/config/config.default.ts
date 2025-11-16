@@ -1,3 +1,5 @@
+import { EggAppConfig } from 'egg';
+import { PowerPartial } from 'egg';
 import type { ServerOptions } from 'socket.io';
 
 /**
@@ -67,8 +69,13 @@ export interface SocketIOConfig {
  * tegg-socket.io default config
  * @member Config#teggSocketIO
  */
-export default {
-  teggSocketIO: {
+export default () => {
+
+  const config = {} as PowerPartial<EggAppConfig>;
+
+  config.teggSocketIO = {
     namespace: {},
-  } as SocketIOConfig,
+  } as SocketIOConfig;
+
+  return config;
 };

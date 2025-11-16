@@ -20,7 +20,7 @@ export interface ExtendedIncomingMessage {
   args?: unknown[];
   [key: string]: unknown;
 }
-export interface SocketIOContext extends Context {
+export interface SocketIOContext extends Omit<Context, 'socket'> {
   socket: Socket;
   args?: unknown[];
   packet?: SocketIOPacket;
@@ -55,7 +55,39 @@ declare module 'socket.io' {
   }
 }
 
-declare module '@eggjs/core' {
+declare module 'egg' {
+  interface Context {
+    /**
+     * Socket.IO message arguments
+     * Contains the data sent from client in socket events
+     * @example
+     * ```ts
+     * // Client sends: socket.emit('message', { text: 'hello' })
+     * // Server receives:
+     * async message() {
+     *   const data = this.ctx.args![0]; // { text: 'hello' }
+     * }
+     * ```
+     */
+    args?: unknown[];
+  }
+
+  interface SocketIOServer extends Server {
+    /**
+     * Loaded middleware map
+     * Middleware loaded from app/io/middleware/ directories
+     */
+    middleware: CustomMiddleware;
+    /**
+     * Loaded controller map
+     * Controllers loaded from app/io/controller/ directories
+     */
+    controller: CustomController;
+  }
+  export interface Application {
+    io: SocketIOServer;
+  }
+
   /**
    * Custom middleware interface
    * Extend this interface in your application to add type definitions for your middleware
@@ -85,55 +117,5 @@ declare module '@eggjs/core' {
    * ```
    */
   interface CustomController { }
-
-  interface Context {
-    /**
-     * Socket.IO socket instance
-     * Available in Socket.IO middleware and controllers
-     */
-    socket?: Socket;
-    /**
-     * Socket.IO message arguments
-     * Contains the data sent from client in socket events
-     * @example
-     * ```ts
-     * // Client sends: socket.emit('message', { text: 'hello' })
-     * // Server receives:
-     * async message() {
-     *   const data = this.ctx.args![0]; // { text: 'hello' }
-     * }
-     * ```
-     */
-    args?: unknown[];
-  }
-
-  interface SocketIOServer extends Server {
-    /**
-     * Loaded middleware map
-     * Middleware loaded from app/io/middleware/ directories
-     */
-    middleware: CustomMiddleware;
-    /**
-     * Loaded controller map
-     * Controllers loaded from app/io/controller/ directories
-     */
-    controller: CustomController;
-  }
-
-  interface Application {
-    /**
-     * Socket.IO server instance
-     * Created lazily when first accessed
-     */
-    io: SocketIOServer;
-  }
-
-  interface EggCore {
-    /**
-     * Socket.IO server instance
-     * Created lazily when first accessed
-     */
-    io: SocketIOServer;
-  }
 }
 

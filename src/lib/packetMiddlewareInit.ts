@@ -24,7 +24,7 @@ export function packetMiddlewareInit(
 ): void {
   const request = socket.request as unknown as ExtendedIncomingMessage & HttpIncomingMessage;
   (request as ExtendedIncomingMessage).socket = socket;
-  const ctx = app.createContext(request as HttpIncomingMessage, new http.ServerResponse(request as HttpIncomingMessage)) as SocketIOContext;
+  const ctx = app.createContext(request as HttpIncomingMessage, new http.ServerResponse(request as HttpIncomingMessage)) as unknown as SocketIOContext;
   ctx.packet = packet;
   ctx[CtxEventSymbol] = new EventEmitter();
   delegateSocket(ctx as unknown as Context);
