@@ -1,6 +1,7 @@
 import type { Server, Socket, Namespace } from 'socket.io';
 import type { Context } from 'egg';
 import type { Middleware as KoaMiddleware, ComposedMiddleware } from 'koa-compose';
+import type { SocketIOConfig } from './config/config.default.js';
 
 export const RouterConfigSymbol: unique symbol = Symbol.for('TEGG-SOCKET.IO#ROUTERCONFIG');
 export const CtxEventSymbol: unique symbol = Symbol.for('TEGG-SOCKET.IO#CTX-EVENT');
@@ -52,6 +53,12 @@ declare module 'socket.io' {
   interface Namespace {
     [RouterConfigSymbol]?: Map<string, RouteHandler>;
     route(event: string, handler: RouteHandler): void;
+  }
+}
+
+declare module '@eggjs/core' {
+  interface EggAppConfig {
+    teggSocketIO: SocketIOConfig;
   }
 }
 
