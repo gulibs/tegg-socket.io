@@ -97,8 +97,7 @@
     "dist",
     "src",
     "README.md",
-    "README.zh_CN.md",
-    "tshelper.json"
+    "README.zh_CN.md"
   ],
   "types": "./dist/commonjs/index.d.ts",
   "main": "./dist/commonjs/index.js",

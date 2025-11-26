@@ -8,13 +8,15 @@ Socket.IO plugin for the Tegg runtime with first-class TypeScript support.
 
 ## Features
 
-- ✅ **TypeScript Support** - Full TypeScript type definitions
+- ✅ **Decorator-Based Routing** - Modern decorator pattern inspired by Tegg HTTPController (NEW!)
+- ✅ **TypeScript Support** - Full TypeScript type definitions with zero config
 - ✅ **Dual Module Support** - ESM and CommonJS builds via `tshy`
 - ✅ **Middleware System** - Connection and packet middleware with Koa-style composition
-- ✅ **Controller System** - Event-based controller routing
+- ✅ **Controller System** - Event-based controller routing with auto-discovery
 - ✅ **Namespace Management** - Multi-namespace support with per-namespace middleware
 - ✅ **Redis Adapter** - Optional Redis adapter for cluster mode
-- ✅ **FileLoader Pattern** - Loads middleware and controllers from `app/io/` directories
+- ✅ **Helper Decorators** - @Room, @Broadcast, @Subscribe for common Socket.IO patterns
+- ✅ **Backward Compatible** - Works with both decorator and traditional routing
 
 ## Requirements
 
@@ -27,7 +29,9 @@ Socket.IO plugin for the Tegg runtime with first-class TypeScript support.
 npm i @gulibs/tegg-socket.io
 ```
 
-## Quick Start
+## Quick Start (Decorator Style) 🎉
+
+The modern way to use Socket.IO with decorators, inspired by Tegg's HTTPController pattern.
 
 ### 1. Enable Plugin
 
@@ -41,94 +45,92 @@ export default {
 };
 ```
 
-### 2. Configure Plugin
-
-```typescript
-// {app_root}/config/config.default.ts
-import type { EggAppConfig, PowerPartial } from 'egg';
-
-export default () => {
-  const config: PowerPartial<EggAppConfig> = {
-    teggSocketIO: {
-      namespace: {
-        '/': {
-          connectionMiddleware: ['auth'],
-          packetMiddleware: ['filter'],
-        },
-      },
-    },
-  };
-  return config;
-};
-```
-
-### 3. Create Middleware
-
-```typescript
-// {app_root}/app/io/middleware/auth.ts
-import type { Context, Application } from 'egg';
-
-export default (app: Application) => {
-  return async (ctx: Context, next: () => Promise<void>) => {
-    ctx.socket.emit('res', 'connected!');
-    await next();
-    console.log('disconnected!');
-  };
-};
-```
-
-### 4. Create Controller
+### 2. Create Controller with Decorators
 
 ```typescript
 // {app_root}/app/io/controller/chat.ts
-import type { Application } from 'egg';
+import { SocketIOController, SocketIOEvent, Room, Broadcast } from '@gulibs/tegg-socket.io';
+import { Context } from '@eggjs/tegg';
+import { AuthMiddleware } from '../middleware/auth';
 
-export default (app: Application) => {
-  class ChatController extends app.Controller {
-    async ping() {
-      const message = this.ctx.args[0];
-      this.ctx.socket.emit('res', `Hi! I've got your message: ${message}`);
-    }
+@SocketIOController({
+  namespace: '/',
+  connectionMiddleware: [AuthMiddleware], // Direct class reference - type-safe!
+})
+export default class ChatController {
+  @SocketIOEvent({ event: 'message' })
+  async handleMessage(@Context() ctx: any) {
+    const msg = ctx.args[0];
+    ctx.socket.emit('response', `Received: ${msg}`);
   }
-  return ChatController;
-};
+
+  @SocketIOEvent({ event: 'joinRoom' })
+  @Room({ name: 'lobby' })
+  async joinLobby(@Context() ctx: any) {
+    ctx.socket.emit('joined', 'Welcome to lobby!');
+  }
+
+  @SocketIOEvent({ event: 'broadcast' })
+  @Broadcast({ to: 'lobby' })
+  async broadcastMessage(@Context() ctx: any) {
+    return { text: ctx.args[0], from: ctx.socket.id };
+  }
+}
 ```
 
-### 5. Configure Router
+### 3. Create Middleware with Decorators
 
 ```typescript
-// {app_root}/app/router.ts
-import type { Application } from 'egg';
+// {app_root}/app/module/your-module/middleware/auth.ts
+import { ConnectionMiddleware } from '@gulibs/tegg-socket.io';
+import { Context } from '@eggjs/tegg';
 
-export default (app: Application) => {
-  app.io.route('chat', app.io.controller.chat.ping);
-};
+@ConnectionMiddleware({ priority: 10 })
+export class AuthMiddleware {
+  async use(@Context() ctx: any, next: () => Promise<void>) {
+    const token = ctx.socket.handshake.query.token;
+    if (!token || token.length < 6) {
+      ctx.socket.emit('error', 'Authentication required');
+      ctx.socket.disconnect();
+      return;
+    }
+    ctx.state.user = { id: 'user123', token };
+    await next();
+  }
+}
 ```
 
-## Configuration
+### 4. Configure (Optional)
 
-### Namespace Configuration
+Decorators handle most configuration automatically. You only need config for optional features:
 
 ```typescript
 // {app_root}/config/config.default.ts
 export default () => {
-  const config: PowerPartial<EggAppConfig> = {
+  const config = {
     teggSocketIO: {
-      namespace: {
-        '/': {
-          connectionMiddleware: ['auth'],
-          packetMiddleware: ['filter'],
-        },
-        '/example': {
-          connectionMiddleware: ['auth'],
-          packetMiddleware: [],
-        },
+      // Optional: Redis adapter for cluster mode
+      redis: {
+        host: '127.0.0.1',
+        port: 6379,
+      },
+      // Optional: Engine.IO options
+      init: {
+        pingTimeout: 60000,
       },
     },
   };
   return config;
 };
 ```
+
+### 5. No Router File Needed! 🎉
+
+With decorators, routes are automatically registered. No need to manually configure `app/router.ts` for Socket.IO events!
+
+## Configuration
+
+> **Modern Approach:** Use `@SocketIOController` decorators to define namespaces and middleware. Configuration is only needed for optional features like Redis adapter.
 
 ### Redis Adapter (Optional)
 
@@ -172,279 +174,287 @@ teggSocketIO: {
 
 ```
 app
-├── io
-│   ├── controller
-│   │   └── chat.ts
-│   └── middleware
-│       ├── auth.ts
-│       └── filter.ts
-├── router.ts
+├── module/
+│   └── your-module/
+│       ├── controller/
+│       │   └── ChatController.ts
+│       └── middleware/
+│           ├── AuthMiddleware.ts
+│           └── LogMiddleware.ts
 config
 ├── config.default.ts
 └── plugin.ts
 ```
 
-### Connection Middleware
+**Note:** Controllers and middleware are automatically discovered in both `app/io/` and `app/module/*/` directories.
 
-Connection middleware executes when a socket connects or disconnects.
+## Decorator API Reference
+
+### @SocketIOController
+
+Marks a class as a Socket.IO controller and configures its namespace and middleware.
 
 ```typescript
-// {app_root}/app/io/middleware/auth.ts
-import type { Context, Application } from 'egg';
-
-export default (app: Application) => {
-  return async (ctx: Context, next: () => Promise<void>) => {
-    // Execute on connection
-    ctx.socket.emit('res', 'connected!');
-
-    await next();
-
-    // Execute on disconnect (after next())
-    console.log('disconnected!');
-  };
-};
+@SocketIOController({
+  namespace?: string;                        // Default: '/'
+  connectionMiddleware?: Array<Constructor | string>; // Middleware classes or names
+  packetMiddleware?: Array<Constructor | string>;     // Middleware classes or names
+})
 ```
 
-### Packet Middleware
-
-Packet middleware executes on every Socket.IO event packet.
+**Example:**
 
 ```typescript
-// {app_root}/app/io/middleware/filter.ts
-import type { Context, Application } from 'egg';
+import { AuthMiddleware, AdminAuthMiddleware } from '../middleware';
 
-export default (app: Application) => {
-  return async (ctx: Context, next: () => Promise<void>) => {
-    console.log('packet:', ctx.packet);
-    await next();
-  };
-};
-```
-
-### Controller
-
-Controllers handle Socket.IO events. They can be class-based or function-based.
-
-#### Class-based Controller
-
-```typescript
-// {app_root}/app/io/controller/chat.ts
-import type { Application } from 'egg';
-
-export default (app: Application) => {
-  class ChatController extends app.Controller {
-    async ping() {
-      const message = this.ctx.args[0];
-      this.ctx.socket.emit('res', `Message: ${message}`);
-    }
-  }
-  return ChatController;
-};
-```
-
-#### Function-based Controller
-
-```typescript
-// {app_root}/app/io/controller/chat.ts
-import type { Context } from 'egg';
-
-export async function ping(this: Context) {
-  const message = this.args[0];
-  this.socket.emit('res', `Message: ${message}`);
+@SocketIOController({
+  namespace: '/admin',
+  connectionMiddleware: [AuthMiddleware, AdminAuthMiddleware], // Direct class references
+  packetMiddleware: ['log', 'validate'], // Or string names (if registered elsewhere)
+})
+export default class AdminController {
+  // ...
 }
 ```
 
-### Router
+### @SocketIOEvent
 
-Configure event routing in `app/router.ts`:
+Marks a method as a Socket.IO event handler.
 
 ```typescript
-// {app_root}/app/router.ts
-import type { Application } from 'egg';
-
-export default (app: Application) => {
-  app.io.route('chat', app.io.controller.chat.ping);
-  app.io.route('disconnect', app.io.controller.chat.disconnect);
-};
+@SocketIOEvent({
+  event: string;                   // Event name (required)
+  packetMiddleware?: string[];     // Event-specific middleware
+})
 ```
 
-### Controller Context
+**Example:**
 
-Controllers have access to:
+```typescript
+@SocketIOEvent({ event: 'chat' })
+async handleChat() {
+  const message = this.ctx.args[0];
+  this.ctx.socket.emit('response', message);
+}
+```
 
-- `this.ctx` - application Context object
-- `this.ctx.socket` - Socket.IO socket instance
-- `this.ctx.args` - Event arguments array
-- `this.ctx.packet` - Socket.IO packet (in packet middleware)
-- `this.app` - Application instance
-- `this.service` - Service instances
-- `this.config` - Configuration
-- `this.logger` - Logger instance
+### @ConnectionMiddleware
+
+Marks a class as connection-level middleware.
+
+```typescript
+@ConnectionMiddleware({
+  priority?: number;  // Default: 100 (lower executes first)
+})
+```
+
+**Example:**
+
+```typescript
+@ConnectionMiddleware({ priority: 10 })
+export class AuthMiddleware {
+  async use(ctx: Context, next: () => Promise<void>) {
+    // Connection logic
+    await next();
+    // Disconnection cleanup
+  }
+}
+```
+
+### @PacketMiddleware
+
+Marks a class as packet-level middleware.
+
+```typescript
+@PacketMiddleware({
+  priority?: number;  // Default: 100
+})
+```
+
+**Example:**
+
+```typescript
+@PacketMiddleware({ priority: 50 })
+export class LogMiddleware {
+  async use(ctx: Context, next: () => Promise<void>) {
+    console.log('Packet:', ctx.packet);
+    await next();
+  }
+}
+```
+
+### @Room
+
+Automatically joins socket to a room before method execution.
+
+```typescript
+@Room({
+  name: string | ((ctx: Context) => string | Promise<string>);
+  autoLeave?: boolean;  // Default: false
+})
+```
+
+**Examples:**
+
+```typescript
+// Static room name
+@Room({ name: 'lobby' })
+async joinLobby() {
+  this.ctx.socket.emit('joined', 'Welcome to lobby');
+}
+
+// Dynamic room name
+@Room({ name: (ctx) => ctx.args[0] })
+async joinRoom() {
+  const roomName = this.ctx.args[0];
+  this.ctx.socket.emit('joined', `Welcome to ${roomName}`);
+}
+
+// Auto-leave after execution
+@Room({ name: 'temporary', autoLeave: true })
+async quickVisit() {
+  // Socket joins and automatically leaves after
+}
+```
+
+### @Broadcast
+
+Automatically broadcasts method return value to specified rooms.
+
+```typescript
+@Broadcast({
+  to?: string | string[];     // Target room(s)
+  event?: string;             // Custom event name
+  includeSelf?: boolean;      // Default: false
+})
+```
+
+**Examples:**
+
+```typescript
+// Broadcast to single room
+@Broadcast({ to: 'lobby' })
+async sendMessage() {
+  return { text: this.ctx.args[0], from: this.ctx.socket.id };
+}
+
+// Broadcast to multiple rooms
+@Broadcast({ to: ['room1', 'room2'] })
+async multicast() {
+  return { announcement: 'Hello everyone!' };
+}
+
+// Custom event name
+@Broadcast({ to: 'lobby', event: 'newMessage' })
+async createMessage() {
+  return { id: Date.now(), text: this.ctx.args[0] };
+}
+
+// Include sender
+@Broadcast({ to: 'group', includeSelf: true })
+async groupMessage() {
+  return { text: this.ctx.args[0] };
+}
+```
+
+### @Subscribe
+
+Subscribes to Socket.IO system events.
+
+```typescript
+@Subscribe({
+  event: 'connect' | 'disconnect' | 'disconnecting' | 'error';
+})
+```
+
+**Examples:**
+
+```typescript
+@Subscribe({ event: 'disconnect' })
+async onDisconnect() {
+  this.app.logger.info('User disconnected:', this.ctx.socket.id);
+  // Cleanup logic
+}
+
+@Subscribe({ event: 'error' })
+async onError() {
+  const error = this.ctx.args[0];
+  this.app.logger.error('Socket error:', error);
+}
+```
+
+### Decorator Composition
+
+Multiple decorators can be composed on the same method:
+
+```typescript
+@SocketIOEvent({ event: 'groupChat' })
+@Room({ name: 'chatroom' })
+@Broadcast({ to: 'chatroom' })
+async handleGroupChat() {
+  // 1. Socket joins 'chatroom'
+  // 2. Method executes
+  // 3. Return value is broadcast to 'chatroom'
+  return { text: this.ctx.args[0], from: this.ctx.socket.id };
+}
+```
+
+**Execution Order:**
+1. @Room (join room)
+2. Method execution
+3. @Broadcast (broadcast result)
+4. @Room autoLeave (if enabled)
 
 ## TypeScript Support
 
-This plugin provides full TypeScript support with two approaches for type generation:
+The plugin provides full TypeScript support out of the box with decorators:
 
-### Option 1: Automatic Type Generation with `ets` (Recommended) ✨
+### Built-in Type Safety
 
-Use the [`ets` CLI](https://www.npmjs.com/package/egg-ts-helper) to automatically generate type definitions for your Socket.IO controllers and middleware.
-
-#### Setup
-
-1. **Install the CLI** (most Tegg + TypeScript projects already have it):
-
-```bash
-npm install egg-ts-helper --save-dev
-```
-
-2. **Run the generator with the plugin-provided config** (no files to copy):
-
-```bash
-npx ets --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
-```
-
-3. **Watch & regenerate automatically** (optional):
-
-```bash
-npx ets -w --config ./node_modules/@gulibs/tegg-socket.io/tshelper.json
-```
-
-Or manually generate types:
-
-```bash
-npx ets        # Generate once
-npx ets -w     # Watch mode
-```
-
-#### Usage Example
-
-With `ets`, you don't need to manually declare types:
+Decorators provide automatic type safety without any configuration:
 
 ```typescript
-// app/io/middleware/auth.ts
-// ✅ No manual type declaration needed!
-export default function auth() {
-  return async (ctx, next) => {
-    const token = ctx.socket.handshake.headers.authorization;
-    if (!token) {
-      ctx.socket.disconnect();
-      return;
-    }
-    await next();
-  };
-}
-```
+import { SocketIOController, SocketIOEvent, Room, Broadcast } from '@gulibs/tegg-socket.io';
+import { Context } from '@eggjs/tegg';
+import { AuthMiddleware } from '../middleware/auth';
 
-```typescript
-// app/io/controller/chat.ts
-// ✅ No manual type declaration needed!
-import { Controller } from 'egg';
-
-export default class ChatController extends Controller {
-  async message() {
-    // Access Socket.IO arguments safely
-    const data = this.ctx.args![0];
-    this.app.io.emit('message', data);
-  }
-}
-```
-
-The generator will produce `typings/app/io/index.d.ts` with:
-
-```typescript
-declare module 'egg' {
-  interface CustomMiddleware {
-    auth: typeof auth;
-  }
-
-  interface CustomController {
-    chat: typeof ChatController;
-  }
-}
-```
-
-Now you get full IntelliSense:
-
-```typescript
-app.io.middleware.auth         // ✅ Type-safe
-app.io.controller.chat         // ✅ Type-safe
-this.ctx.args                  // ✅ Type-safe (unknown[])
-this.ctx.socket                // ✅ Type-safe
-```
-
-#### Router Initialization Safety
-
-- The plugin preloads controllers and middleware before router files run, and also hooks the router loader so a router access triggers loading if it somehow happens first.
-- It's safe to reference `app.io.controller.*` or `app.io.middleware.*` inside `app/router.ts` (even during module evaluation); the loader hook guarantees the objects exist before your code touches them.
-
-### Option 2: Manual Type Declaration
-
-If you prefer not to use egg-ts-helper, you can manually declare types:
-
-#### Extend Middleware Types
-
-```typescript
-// app/io/middleware/auth.ts
-import { Application, Context } from 'egg';
-
-declare module 'egg' {
-  interface CustomMiddleware {
-    auth: (app: Application) => (ctx: Context, next: () => Promise<void>) => Promise<void>;
-  }
-}
-
-export default function auth(app: Application) {
-  return async (ctx: Context, next: () => Promise<void>) => {
-    // Your auth logic
-    await next();
-  };
-}
-```
-
-#### Extend Controller Types
-
-```typescript
-// app/io/controller/chat.ts
-import { Controller } from 'egg';
-
-declare module 'egg' {
-  interface CustomController {
-    chat: ChatController;
-  }
-}
-
-export default class ChatController extends Controller {
-  async message() {
-    const data = this.ctx.args![0];
-    this.app.io.emit('message', data);
+@SocketIOController({
+  namespace: '/',
+  connectionMiddleware: [AuthMiddleware], // ✅ Type-safe class reference
+})
+export default class ChatController {
+  @SocketIOEvent({ event: 'message' })
+  async handleMessage(@Context() ctx: any) {
+    // ✅ Full IntelliSense support
+    const message = ctx.args[0];
+    ctx.socket.emit('response', `Received: ${message}`);
   }
 }
 ```
 
 ### Context Type Extensions
 
-The plugin extends the application `Context` with Socket.IO-specific properties:
+The plugin extends the Egg `Context` with Socket.IO-specific properties:
 
 ```typescript
 interface Context {
-  socket?: Socket;   // Socket.IO socket instance
-  args?: unknown[];  // Message arguments from client
+  socket: Socket;    // Socket.IO socket instance
+  args?: unknown[];  // Event arguments from client
 }
 ```
 
-Usage in controllers:
+### Usage in Controllers
 
 ```typescript
-export default class ChatController extends Controller {
-  async message() {
+@SocketIOController({ namespace: '/' })
+export default class ChatController {
+  @SocketIOEvent({ event: 'message' })
+  async handleMessage(@Context() ctx: any) {
     // Access socket
-    this.ctx.socket.emit('response', { success: true });
+    ctx.socket.emit('response', { success: true });
 
-    // Access message arguments (type assertion recommended)
-    const { text, userId } = this.ctx.args![0] as { text: string; userId: string };
-
-    // Or with destructuring
-    const [firstArg, secondArg] = this.ctx.args || [];
+    // Access arguments (type assertion recommended)
+    const { text, userId } = ctx.args[0] as { text: string; userId: string };
   }
 }
 
@@ -489,8 +499,8 @@ const io = app.io;
 // Get namespace
 const nsp = app.io.of('/');
 
-// Register route
-app.io.route('event', handler);
+// Emit to all clients
+app.io.emit('broadcast', data);
 
 ```
 
@@ -500,7 +510,7 @@ Socket.IO socket instance available in middleware and controllers.
 
 ```typescript
 
-// Emit event
+// Emit event to client
 ctx.socket.emit('event', data);
 
 // Join room

@@ -31,18 +31,16 @@ export interface SocketIOContext extends Omit<Context, 'socket'> {
 export interface LoadedMiddleware {
   [key: string]: SocketIOMiddleware;
 }
-export interface LoadedController {
-  [key: string]: RouteHandler | { [method: string]: RouteHandler };
-}
+// LoadedController removed - controllers are now exclusively managed via decorators
 export type SessionMiddleware = SocketIOMiddleware & { _name?: string };
 
 /**
  * Runtime Socket.IO server shape used inside the plugin implementation.
- * Exposed Application/EggCore types use CustomMiddleware/CustomController instead.
+ * Exposed Application/EggCore types use CustomMiddleware instead.
+ * Controllers are now exclusively managed via decorators.
  */
 export interface RuntimeSocketIOServer extends Server {
   middleware: LoadedMiddleware;
-  controller: LoadedController;
 }
 
 declare module 'socket.io' {
@@ -85,11 +83,6 @@ declare module 'egg' {
      * Middleware loaded from app/io/middleware/ directories
      */
     middleware: CustomMiddleware;
-    /**
-     * Loaded controller map
-     * Controllers loaded from app/io/controller/ directories
-     */
-    controller: CustomController;
   }
   export interface Application {
     io: SocketIOServer;
@@ -111,17 +104,8 @@ declare module 'egg' {
   interface CustomMiddleware { }
 
   /**
-   * Custom controller interface
-   * Extend this interface in your application to add type definitions for your controllers
-   * @example
-   * ```ts
-   * declare module 'egg' {
-   *   interface CustomController {
-   *     chat: ChatController;
-   *     index: IndexController;
-   *   }
-   * }
-   * ```
+   * @deprecated CustomController is no longer used. Use @SocketIOController decorator instead.
+   * Controllers are now exclusively managed via decorators.
    */
   interface CustomController { }
 }
