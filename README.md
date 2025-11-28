@@ -16,6 +16,9 @@ Socket.IO plugin for the Tegg runtime with first-class TypeScript support.
 - ✅ **Namespace Management** - Multi-namespace support with per-namespace middleware
 - ✅ **Redis Adapter** - Optional Redis adapter for cluster mode
 - ✅ **Helper Decorators** - @Room, @Broadcast, @Subscribe for common Socket.IO patterns
+- ✅ **Performance Monitoring** - @PerformanceMonitor decorator for metrics collection
+- ✅ **Rate Limiting** - @RateLimit decorator for request throttling
+- ✅ **Message Storage** - @MessageStorage decorator for database persistence (MySQL, MongoDB, Redis)
 - ✅ **Backward Compatible** - Works with both decorator and traditional routing
 
 ## Requirements
@@ -167,6 +170,35 @@ teggSocketIO: {
   },
 }
 ```
+
+### Message Storage Configuration
+
+Enable message persistence globally:
+
+```typescript
+teggSocketIO: {
+  messageStorage: {
+    enabled: true, // Must be enabled to use @MessageStorage decorator
+  },
+}
+```
+
+**Note:** You also need to install and configure `@gulibs/tegg-sequelize` plugin for database access.
+
+### Connection Limit Configuration
+
+Limit the number of connections per namespace:
+
+```typescript
+teggSocketIO: {
+  connectionLimit: {
+    maxConnections: 1000, // Maximum connections per namespace
+    message: 'Connection limit exceeded. Please try again later.',
+  },
+}
+```
+
+**Note:** Connection limit is checked when a new socket connects. If exceeded, the connection is rejected with an error event.
 
 ## Usage
 
@@ -357,6 +389,219 @@ async groupMessage() {
 }
 ```
 
+### @PerformanceMonitor
+
+Monitors method performance metrics (duration, count, error rate, throughput).
+
+```typescript
+@PerformanceMonitor({
+  enabled?: boolean;        // Default: true
+  sampleRate?: number;      // Default: 1.0 (0.0 to 1.0)
+  metrics?: PerformanceMetric[];  // Default: ['duration', 'count', 'errorRate']
+  logMetrics?: boolean;     // Default: false
+  onMetrics?: (metrics: PerformanceMetrics) => void | Promise<void>;
+})
+```
+
+**Example:**
+
+```typescript
+@SocketIOEvent({ event: 'chat' })
+@PerformanceMonitor({
+  enabled: true,
+  sampleRate: 1.0,
+  metrics: ['duration', 'count', 'errorRate', 'throughput'],
+  logMetrics: true
+})
+async handleChat(@Context() ctx: any) {
+  // Performance metrics will be automatically collected
+}
+```
+
+### @RateLimit
+
+Limits the number of requests per time window.
+
+```typescript
+@RateLimit({
+  max?: number;            // Default: 10
+  window?: number | string; // Default: 60000 (1 minute) or '1m', '1h', etc.
+  key?: 'socket' | 'user' | 'ip' | ((ctx: Context) => string | Promise<string>);
+  message?: string;        // Default: 'Rate limit exceeded'
+  skip?: boolean;          // Default: false
+})
+```
+
+**Example:**
+
+```typescript
+@SocketIOEvent({ event: 'chat' })
+@RateLimit({ max: 10, window: '1m', key: 'socket' })
+async handleChat(@Context() ctx: any) {
+  // Maximum 10 requests per minute per socket
+}
+
+@SocketIOEvent({ event: 'sendMessage' })
+@RateLimit({ max: 100, window: 3600000, key: 'user' })
+async sendMessage(@Context() ctx: any) {
+  // Maximum 100 requests per hour per user
+}
+```
+
+### @MessageStorage
+
+Automatically saves messages to database (MySQL, MongoDB, or Redis).
+
+**Prerequisites:**
+- Install `@gulibs/tegg-sequelize` plugin
+- Enable message storage in config: `config.teggSocketIO.messageStorage.enabled = true`
+- For MySQL/PostgreSQL: Provide your own Sequelize Model
+- For Redis/MongoDB: Configure via `customFactory` in `@gulibs/tegg-sequelize`
+
+```typescript
+@MessageStorage({
+  adapter?: 'mysql' | 'mongodb' | 'redis';  // Default: 'mysql'
+  table?: string;                          // Default: 'socket_messages' (collection name for MongoDB)
+  enabled?: boolean;                        // Default: true
+  events?: string[];                        // Whitelist of events to store
+  excludeEvents?: string[];                 // Blacklist of events to exclude
+  ttl?: number;                            // TTL for Redis (milliseconds, default: 24 hours)
+  model?: string | ModelCtor<Model>;        // Sequelize Model name or class (required for MySQL/PostgreSQL)
+  clientName?: string;                      // Sequelize client name for multi-client support
+})
+```
+
+**Examples:**
+
+```typescript
+// Example 1: Using Model name (recommended)
+@SocketIOEvent({ event: 'chat' })
+@MessageStorage({
+  adapter: 'mysql',
+  model: 'SocketMessage', // Model name from sequelize.models
+  clientName: 'mysql', // Optional: for multi-client support
+  enabled: true,
+  events: ['chat', 'message'], // Only store these events
+  excludeEvents: ['ping', 'pong'] // Exclude these events
+})
+async handleChat(@Context() ctx: any) {
+  // Message will be automatically saved using Sequelize Model
+}
+
+// Example 2: Using Model class
+import { SocketMessage } from './models/SocketMessage';
+@SocketIOEvent({ event: 'chat' })
+@MessageStorage({
+  adapter: 'mysql',
+  model: SocketMessage, // Model class directly
+  enabled: true
+})
+async handleChat(@Context() ctx: any) {
+  // Message will be automatically saved
+}
+
+// Example 3: Redis adapter
+@SocketIOEvent({ event: 'notification' })
+@MessageStorage({
+  adapter: 'redis',
+  clientName: 'redis', // Redis client configured via customFactory
+  ttl: 3600000, // 1 hour TTL
+  enabled: true
+})
+async handleNotification(@Context() ctx: any) {
+  // Message will be saved to Redis with TTL
+}
+
+// Example 4: MongoDB adapter
+@SocketIOEvent({ event: 'log' })
+@MessageStorage({
+  adapter: 'mongodb',
+  clientName: 'mongodb', // MongoDB client configured via customFactory
+  table: 'socket_logs', // Collection name
+  enabled: true
+})
+async handleLog(@Context() ctx: any) {
+  // Message will be saved to MongoDB collection
+}
+```
+
+**Configuration:**
+
+Enable message storage in config:
+
+```typescript
+// config/config.default.ts
+export default () => {
+  return {
+    teggSocketIO: {
+      messageStorage: {
+        enabled: true, // Must be enabled to use @MessageStorage
+      },
+    },
+  };
+};
+```
+
+**Database Setup:**
+
+For MySQL/PostgreSQL, create your Sequelize Model:
+
+```typescript
+// app/models/SocketMessage.ts
+import { Model, Column, Table, DataType } from 'sequelize-typescript';
+
+@Table({
+  tableName: 'socket_messages',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
+})
+export class SocketMessage extends Model {
+  @Column({ type: DataType.BIGINT, primaryKey: true, autoIncrement: true })
+  id!: number;
+
+  @Column({ type: DataType.STRING(255), allowNull: false })
+  event!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: false, defaultValue: '/' })
+  namespace!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  room?: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: false })
+  socketId!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  userId?: string;
+
+  @Column({ type: DataType.JSON, allowNull: false })
+  data!: any;
+
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  createdAt!: Date;
+}
+```
+
+Or create the table manually:
+
+```sql
+CREATE TABLE socket_messages (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  event VARCHAR(255) NOT NULL,
+  namespace VARCHAR(255) NOT NULL DEFAULT '/',
+  room VARCHAR(255),
+  socket_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255),
+  data JSON NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_namespace_room (namespace, room),
+  INDEX idx_socket_id (socket_id),
+  INDEX idx_user_id (user_id),
+  INDEX idx_created_at (created_at)
+);
+```
+
 ### @Subscribe
 
 Subscribes to Socket.IO system events.
@@ -399,11 +644,37 @@ async handleGroupChat() {
 }
 ```
 
+**Complete Example (with all new decorators):**
+
+```typescript
+@SocketIOEvent({ event: 'sendMessage' })
+@RateLimit({ max: 10, window: '1m', key: 'user' })
+@PerformanceMonitor({ logMetrics: true })
+@MessageStorage({
+  adapter: 'mysql',
+  model: 'SocketMessage',
+  clientName: 'mysql'
+})
+@Room({ name: (ctx) => ctx.args[0].room })
+@Broadcast({ to: (ctx) => ctx.args[0].room })
+async sendMessage(@Context() ctx: any) {
+  // 1. Rate limit check
+  // 2. Socket joins room
+  // 3. Method execution (performance monitored)
+  // 4. Message saved to database
+  // 5. Return value broadcast to room
+  return { text: ctx.args[0].text, from: ctx.socket.id };
+}
+```
+
 **Execution Order:**
-1. @Room (join room)
-2. Method execution
-3. @Broadcast (broadcast result)
-4. @Room autoLeave (if enabled)
+1. @RateLimit (rate limit check)
+2. @Room (join room)
+3. Method execution
+4. @PerformanceMonitor (record metrics)
+5. @MessageStorage (save to database)
+6. @Broadcast (broadcast result)
+7. @Room autoLeave (if enabled)
 
 ## TypeScript Support
 

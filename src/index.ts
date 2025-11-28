@@ -14,6 +14,20 @@ export {
   Room,
   Broadcast,
   Subscribe,
+
+  // Performance monitor
+  PerformanceMonitor,
+  getAllPerformanceMetrics,
+  getPerformanceMetrics,
+  clearPerformanceMetrics,
+
+  // Rate limit
+  RateLimit,
+  getRateLimitRemaining,
+  clearRateLimits,
+
+  // Message storage
+  MessageStorage,
 } from './lib/decorators/index.js';
 
 // Export decorator types
@@ -39,6 +53,22 @@ export type {
   SubscribeOptions,
   SubscribeMetadata,
   SocketIOSystemEvent,
+
+  // Performance monitor types
+  PerformanceMonitorOptions,
+  PerformanceMonitorMetadata,
+  PerformanceMetrics,
+  PerformanceMetric,
+
+  // Rate limit types
+  RateLimitOptions,
+  RateLimitMetadata,
+  RateLimitKey,
+
+  // Message storage types
+  MessageStorageOptions,
+  MessageStorageMetadata,
+  StorageAdapterType,
 } from './lib/decorators/index.js';
 
 // Export utility functions for advanced usage

@@ -13,6 +13,9 @@ export const SOCKETIO_PACKET_MIDDLEWARE_KEY = Symbol.for('TEGG-SOCKET.IO#PACKET_
 export const SOCKETIO_ROOM_KEY = Symbol.for('TEGG-SOCKET.IO#ROOM');
 export const SOCKETIO_BROADCAST_KEY = Symbol.for('TEGG-SOCKET.IO#BROADCAST');
 export const SOCKETIO_SUBSCRIBE_KEY = Symbol.for('TEGG-SOCKET.IO#SUBSCRIBE');
+export const SOCKETIO_PERFORMANCE_KEY = Symbol.for('TEGG-SOCKET.IO#PERFORMANCE');
+export const SOCKETIO_RATE_LIMIT_KEY = Symbol.for('TEGG-SOCKET.IO#RATE_LIMIT');
+export const SOCKETIO_MESSAGE_STORAGE_KEY = Symbol.for('TEGG-SOCKET.IO#MESSAGE_STORAGE');
 
 /**
  * Type guard for checking if target can hold metadata

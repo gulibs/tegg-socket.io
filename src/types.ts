@@ -21,16 +21,9 @@ export interface ExtendedIncomingMessage {
   args?: unknown[];
   [key: string]: unknown;
 }
-export interface SocketIOContext extends Omit<Context, 'socket'> {
-  socket: Socket;
-  args?: unknown[];
-  packet?: SocketIOPacket;
-  [CtxEventSymbol]?: NodeJS.EventEmitter;
-  req: ExtendedIncomingMessage & Context['req'];
-}
-export interface LoadedMiddleware {
-  [key: string]: SocketIOMiddleware;
-}
+
+export type SocketIOContext = Context;
+export type LoadedMiddleware = Record<string, SocketIOMiddleware>;
 // LoadedController removed - controllers are now exclusively managed via decorators
 export type SessionMiddleware = SocketIOMiddleware & { _name?: string };
 
@@ -55,12 +48,7 @@ declare module 'socket.io' {
 }
 
 declare module '@eggjs/core' {
-  interface EggAppConfig {
-    teggSocketIO: SocketIOConfig;
-  }
-}
 
-declare module 'egg' {
   interface Context {
     /**
      * Socket.IO message arguments
@@ -75,17 +63,59 @@ declare module 'egg' {
      * ```
      */
     args?: unknown[];
-  }
 
+    /**
+     * Socket.IO socket instance
+     * Available when context is created for Socket.IO events
+     * @example
+     * ```ts
+     * async message() {
+     *   const socketId = this.ctx.socket.id;
+     *   this.ctx.socket.emit('response', { status: 'ok' });
+     * }
+     * ```
+     */
+    socket?: Socket;
+
+    /**
+     * Socket.IO packet data
+     * Contains the raw packet information [eventName, ...args]
+     */
+    packet?: SocketIOPacket;
+
+    /**
+     * Internal event emitter for Socket.IO context lifecycle
+     * @internal
+     */
+    [CtxEventSymbol]?: NodeJS.EventEmitter;
+
+    /**
+     * Extended request object with Socket.IO specific properties
+     * Note: This extends the existing req property, not replaces it
+     */
+    req?: ExtendedIncomingMessage;
+  }
+}
+
+declare module 'egg' {
+
+  interface EggAppConfig {
+    teggSocketIO: SocketIOConfig;
+  }
+  interface Application {
+    io: SocketIOServer;
+  }
   interface SocketIOServer extends Server {
     /**
      * Loaded middleware map
      * Middleware loaded from app/io/middleware/ directories
      */
     middleware: CustomMiddleware;
-  }
-  export interface Application {
-    io: SocketIOServer;
+    /**
+     * Legacy controller map populated by Egg's FileLoader.
+     * Remains for backward compatibility with non-decorator apps.
+     */
+    controller: Record<string, unknown>;
   }
 
   /**
@@ -101,12 +131,7 @@ declare module 'egg' {
    * }
    * ```
    */
-  interface CustomMiddleware { }
-
-  /**
-   * @deprecated CustomController is no longer used. Use @SocketIOController decorator instead.
-   * Controllers are now exclusively managed via decorators.
-   */
-  interface CustomController { }
+  interface CustomMiddleware extends Record<string, SocketIOMiddleware> {
+  }
 }
 

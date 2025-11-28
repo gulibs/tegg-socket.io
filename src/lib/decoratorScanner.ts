@@ -7,7 +7,10 @@
 import type { Application, Context } from 'egg';
 import type { Socket } from 'socket.io';
 import http from 'node:http';
+import type { IncomingMessage as HttpIncomingMessage } from 'node:http';
+import { EventEmitter } from 'node:events';
 import debug from 'debug';
+import { delegateSocket } from './util.js';
 import {
   isSocketIOController,
   getSocketIOControllerMetadata,
@@ -22,11 +25,25 @@ import {
   type SocketIOEventMetadata,
   type Constructor,
 } from './decorators/index.js';
-import type { RuntimeSocketIOServer, RouteHandler, SocketIOContext, ExtendedIncomingMessage } from '../types.js';
+import type { RuntimeSocketIOServer, RouteHandler, SocketIOContext, ExtendedIncomingMessage, ExtendedNamespace } from '../types.js';
 import { RouterConfigSymbol, CtxEventSymbol } from '../types.js';
-import type { ExtendedNamespace } from '../types.js';
 
 const debugLog = debug('tegg-socket.io:decorator-scanner');
+
+function formatArgs(args: unknown[]): string {
+  return args
+    .map(arg => {
+      if (typeof arg === 'string') {
+        return arg;
+      }
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return '[Unserializable]';
+      }
+    })
+    .join(', ');
+}
 
 // System events that need special handling
 const errorEvent: Record<string, number> = {
@@ -85,9 +102,21 @@ async function registerControllers(
     for (const [methodName, eventMetadata] of events) {
       const roomMetadata = getRoomMetadata(controllerClass.prototype[methodName]);
       const broadcastMetadata = getBroadcastMetadata(controllerClass.prototype[methodName]);
+      // Performance monitor is handled by the decorator itself (method wrapping)
 
       const handler: RouteHandler = async function (this: any) {
+        // Create controller instance
+        // Note: Controllers are typically stateless, so creating a new instance per request
+        // is the default behavior. For performance optimization, consider using dependency
+        // injection or instance caching if your controllers are truly stateless.
         const instance = new controllerClass() as any;
+
+        // Only log in debug mode to reduce overhead
+        if (app.config.env === 'local' || app.logger.level === 'DEBUG') {
+          app.logger.debug(
+            `[tegg-socket.io] Invoking controller ${controllerClass.name}.${methodName} for event ${eventMetadata.event}`
+          );
+        }
 
         instance.ctx = this;
         instance.app = this.app;
@@ -95,7 +124,16 @@ async function registerControllers(
         instance.service = this.service;
         instance.logger = this.logger;
 
-        const result = await instance[methodName]();
+        let result: unknown;
+        try {
+          result = await instance[methodName].call(instance, this);
+        } catch (err) {
+          app.logger.error(
+            `[tegg-socket.io] Controller ${controllerClass.name}.${methodName} execution failed:`,
+            err
+          );
+          throw err;
+        }
 
         if (roomMetadata) {
           const roomName =
@@ -164,6 +202,31 @@ async function registerControllers(
 
     if (routerMap && routerMap.size > 0) {
       nsp.on('connection', (socket: Socket) => {
+        // Check connection limit if configured
+        const config = app.config.teggSocketIO as any;
+        const connectionLimit = config?.connectionLimit;
+        if (connectionLimit?.maxConnections) {
+          const currentConnections = nsp.sockets.size;
+          if (currentConnections >= connectionLimit.maxConnections) {
+            const error = new Error(connectionLimit.message || 'Connection limit exceeded');
+            (error as any).code = 'CONNECTION_LIMIT_EXCEEDED';
+            socket.emit('error', {
+              code: 'CONNECTION_LIMIT_EXCEEDED',
+              message: connectionLimit.message || 'Connection limit exceeded',
+              maxConnections: connectionLimit.maxConnections,
+              currentConnections,
+            });
+            socket.disconnect(true);
+            app.logger.warn(
+              `[tegg-socket.io] Connection limit exceeded for namespace ${nsPath}: ${currentConnections}/${connectionLimit.maxConnections}`
+            );
+            return;
+          }
+        }
+
+        app.logger.info(
+          `[tegg-socket.io] Client connected: namespace=${nsPath}, socketId=${socket.id}, address=${socket.handshake.address}`,
+        );
         for (const [event, handler] of routerMap.entries()) {
           if (errorEvent[event]) {
             // System events (disconnect, error, disconnecting)
@@ -182,10 +245,37 @@ async function registerControllers(
           } else {
             // Normal events
             socket.on(event, (...args: unknown[]) => {
-              const ctx = args.splice(-1)[0] as SocketIOContext;
-              ctx.args = ctx.req.args = args;
+              const handlerArgs = [...args];
+              let ack: ((...ackArgs: unknown[]) => void) | undefined;
+              const maybeAck = handlerArgs[handlerArgs.length - 1];
+              if (typeof maybeAck === 'function') {
+                ack = handlerArgs.pop() as (...ackArgs: unknown[]) => void;
+              }
+              app.logger.info(
+                `[tegg-socket.io] Received event "${event}" from socket ${socket.id} (namespace=${nsPath}) with args: ${formatArgs(args)}`,
+              );
+              // 因为 packetMiddleware 没有被使用，我们需要在这里直接创建 context
+              // 创建 context 对象
+              const request = socket.request as unknown as ExtendedIncomingMessage & HttpIncomingMessage;
+              (request as ExtendedIncomingMessage).socket = socket;
+              const ctx = app.createContext(request as HttpIncomingMessage, new http.ServerResponse(request as HttpIncomingMessage)) as unknown as SocketIOContext;
+
+              // 设置 args
+              ctx.args = handlerArgs;
+              if (ctx.req) {
+                ctx.req.args = handlerArgs;
+              }
+
+              // 创建事件发射器用于通知控制器执行完成
+              ctx[CtxEventSymbol] = new EventEmitter();
+
+              // 委托 socket 属性到 context
+              delegateSocket(ctx as unknown as Context);
               Promise.resolve(handler.call(ctx as unknown as Context))
-                .then(() => {
+                .then((result: unknown) => {
+                  if (ack) {
+                    ack(result);
+                  }
                   ctx[CtxEventSymbol]?.emit('finshed');
                 })
                 .catch((e: Error) => {
@@ -193,6 +283,11 @@ async function registerControllers(
                     e.message = '[tegg-socket.io] controller execute error: ' + e.message;
                   } else {
                     debugLog(e);
+                  }
+                  if (ack) {
+                    ack({
+                      error: e instanceof Error ? e.message : e,
+                    });
                   }
                   ctx[CtxEventSymbol]?.emit('finshed', e);
                 });
@@ -334,7 +429,9 @@ export async function initializeDecoratorSystem(app: Application, ioServer: Runt
 
     // Register middleware first
     debugLog('Registering %d discovered middleware', middlewareRegistry.size);
-    for (const [mwClass, { name, type }] of middlewareRegistry) {
+    for (const middlewareEntry of middlewareRegistry) {
+      const mwClass = middlewareEntry[0];
+      const { name, type } = middlewareEntry[1];
       registerMiddleware(app, ioServer, mwClass, name, type);
     }
 

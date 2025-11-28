@@ -16,6 +16,9 @@
 - ✅ **命名空间管理** - 多命名空间支持，每个命名空间独立中间件
 - ✅ **Redis 适配器** - 可选 Redis 适配器，支持集群模式
 - ✅ **辅助装饰器** - @Room, @Broadcast, @Subscribe 用于常见 Socket.IO 模式
+- ✅ **性能监控** - @PerformanceMonitor 装饰器用于指标收集
+- ✅ **速率限制** - @RateLimit 装饰器用于请求限流
+- ✅ **消息存储** - @MessageStorage 装饰器用于数据库持久化（MySQL、MongoDB、Redis）
 - ✅ **向后兼容** - 同时支持装饰器和传统路由
 
 ## 要求
@@ -167,6 +170,35 @@ teggSocketIO: {
   },
 }
 ```
+
+### 消息存储配置
+
+全局启用消息持久化：
+
+```typescript
+teggSocketIO: {
+  messageStorage: {
+    enabled: true, // 必须启用才能使用 @MessageStorage 装饰器
+  },
+}
+```
+
+**注意：** 你还需要安装并配置 `@gulibs/tegg-sequelize` 插件以访问数据库。
+
+### 连接数限制配置
+
+按命名空间限制连接数：
+
+```typescript
+teggSocketIO: {
+  connectionLimit: {
+    maxConnections: 1000, // 每个命名空间的最大连接数
+    message: '连接数已满，请稍后再试。',
+  },
+}
+```
+
+**注意：** 连接数限制在新 socket 连接时检查。如果超过限制，连接会被拒绝并发送错误事件。
 
 ## 使用方法
 
@@ -357,6 +389,219 @@ async groupMessage(@Context() ctx: any) {
 }
 ```
 
+### @PerformanceMonitor
+
+监控方法性能指标（执行时间、调用次数、错误率、吞吐量）。
+
+```typescript
+@PerformanceMonitor({
+  enabled?: boolean;        // 默认：true
+  sampleRate?: number;      // 默认：1.0 (0.0 到 1.0)
+  metrics?: PerformanceMetric[];  // 默认：['duration', 'count', 'errorRate']
+  logMetrics?: boolean;     // 默认：false
+  onMetrics?: (metrics: PerformanceMetrics) => void | Promise<void>;
+})
+```
+
+**示例：**
+
+```typescript
+@SocketIOEvent({ event: 'chat' })
+@PerformanceMonitor({
+  enabled: true,
+  sampleRate: 1.0,
+  metrics: ['duration', 'count', 'errorRate', 'throughput'],
+  logMetrics: true
+})
+async handleChat(@Context() ctx: any) {
+  // 性能指标会自动收集
+}
+```
+
+### @RateLimit
+
+限制每个时间窗口内的请求数量。
+
+```typescript
+@RateLimit({
+  max?: number;            // 默认：10
+  window?: number | string; // 默认：60000 (1 分钟) 或 '1m', '1h' 等
+  key?: 'socket' | 'user' | 'ip' | ((ctx: Context) => string | Promise<string>);
+  message?: string;        // 默认：'Rate limit exceeded'
+  skip?: boolean;          // 默认：false
+})
+```
+
+**示例：**
+
+```typescript
+@SocketIOEvent({ event: 'chat' })
+@RateLimit({ max: 10, window: '1m', key: 'socket' })
+async handleChat(@Context() ctx: any) {
+  // 每个 socket 每分钟最多 10 次请求
+}
+
+@SocketIOEvent({ event: 'sendMessage' })
+@RateLimit({ max: 100, window: 3600000, key: 'user' })
+async sendMessage(@Context() ctx: any) {
+  // 每个用户每小时最多 100 次请求
+}
+```
+
+### @MessageStorage
+
+自动将消息保存到数据库（MySQL、MongoDB 或 Redis）。
+
+**前置要求：**
+- 安装 `@gulibs/tegg-sequelize` 插件
+- 在配置中启用消息存储：`config.teggSocketIO.messageStorage.enabled = true`
+- 对于 MySQL/PostgreSQL：提供你自己的 Sequelize Model
+- 对于 Redis/MongoDB：通过 `@gulibs/tegg-sequelize` 的 `customFactory` 配置
+
+```typescript
+@MessageStorage({
+  adapter?: 'mysql' | 'mongodb' | 'redis';  // 默认：'mysql'
+  table?: string;                          // 默认：'socket_messages'（MongoDB 的集合名）
+  enabled?: boolean;                        // 默认：true
+  events?: string[];                        // 要存储的事件白名单
+  excludeEvents?: string[];                 // 要排除的事件黑名单
+  ttl?: number;                            // Redis TTL（毫秒，默认：24 小时）
+  model?: string | ModelCtor<Model>;        // Sequelize Model 名称或类（MySQL/PostgreSQL 必需）
+  clientName?: string;                      // Sequelize 客户端名称（多客户端支持）
+})
+```
+
+**示例：**
+
+```typescript
+// 示例 1：使用 Model 名称（推荐）
+@SocketIOEvent({ event: 'chat' })
+@MessageStorage({
+  adapter: 'mysql',
+  model: 'SocketMessage', // 从 sequelize.models 中的 Model 名称
+  clientName: 'mysql', // 可选：用于多客户端支持
+  enabled: true,
+  events: ['chat', 'message'], // 只存储这些事件
+  excludeEvents: ['ping', 'pong'] // 排除这些事件
+})
+async handleChat(@Context() ctx: any) {
+  // 消息会使用 Sequelize Model 自动保存
+}
+
+// 示例 2：使用 Model 类
+import { SocketMessage } from './models/SocketMessage';
+@SocketIOEvent({ event: 'chat' })
+@MessageStorage({
+  adapter: 'mysql',
+  model: SocketMessage, // 直接使用 Model 类
+  enabled: true
+})
+async handleChat(@Context() ctx: any) {
+  // 消息会自动保存
+}
+
+// 示例 3：Redis 适配器
+@SocketIOEvent({ event: 'notification' })
+@MessageStorage({
+  adapter: 'redis',
+  clientName: 'redis', // 通过 customFactory 配置的 Redis 客户端
+  ttl: 3600000, // 1 小时 TTL
+  enabled: true
+})
+async handleNotification(@Context() ctx: any) {
+  // 消息会保存到 Redis，带 TTL
+}
+
+// 示例 4：MongoDB 适配器
+@SocketIOEvent({ event: 'log' })
+@MessageStorage({
+  adapter: 'mongodb',
+  clientName: 'mongodb', // 通过 customFactory 配置的 MongoDB 客户端
+  table: 'socket_logs', // 集合名称
+  enabled: true
+})
+async handleLog(@Context() ctx: any) {
+  // 消息会保存到 MongoDB 集合
+}
+```
+
+**配置：**
+
+在配置中启用消息存储：
+
+```typescript
+// config/config.default.ts
+export default () => {
+  return {
+    teggSocketIO: {
+      messageStorage: {
+        enabled: true, // 必须启用才能使用 @MessageStorage
+      },
+    },
+  };
+};
+```
+
+**数据库设置：**
+
+对于 MySQL/PostgreSQL，创建你的 Sequelize Model：
+
+```typescript
+// app/models/SocketMessage.ts
+import { Model, Column, Table, DataType } from 'sequelize-typescript';
+
+@Table({
+  tableName: 'socket_messages',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
+})
+export class SocketMessage extends Model {
+  @Column({ type: DataType.BIGINT, primaryKey: true, autoIncrement: true })
+  id!: number;
+
+  @Column({ type: DataType.STRING(255), allowNull: false })
+  event!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: false, defaultValue: '/' })
+  namespace!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  room?: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: false })
+  socketId!: string;
+
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  userId?: string;
+
+  @Column({ type: DataType.JSON, allowNull: false })
+  data!: any;
+
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  createdAt!: Date;
+}
+```
+
+或手动创建表：
+
+```sql
+CREATE TABLE socket_messages (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  event VARCHAR(255) NOT NULL,
+  namespace VARCHAR(255) NOT NULL DEFAULT '/',
+  room VARCHAR(255),
+  socket_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255),
+  data JSON NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_namespace_room (namespace, room),
+  INDEX idx_socket_id (socket_id),
+  INDEX idx_user_id (user_id),
+  INDEX idx_created_at (created_at)
+);
+```
+
 ### @Subscribe
 
 订阅 Socket.IO 系统事件。
@@ -399,11 +644,37 @@ async handleGroupChat(@Context() ctx: any) {
 }
 ```
 
+**完整示例（包含所有新装饰器）：**
+
+```typescript
+@SocketIOEvent({ event: 'sendMessage' })
+@RateLimit({ max: 10, window: '1m', key: 'user' })
+@PerformanceMonitor({ logMetrics: true })
+@MessageStorage({
+  adapter: 'mysql',
+  model: 'SocketMessage',
+  clientName: 'mysql'
+})
+@Room({ name: (ctx) => ctx.args[0].room })
+@Broadcast({ to: (ctx) => ctx.args[0].room })
+async sendMessage(@Context() ctx: any) {
+  // 1. 速率限制检查
+  // 2. Socket 加入房间
+  // 3. 方法执行（性能监控）
+  // 4. 消息保存到数据库
+  // 5. 返回值广播到房间
+  return { text: ctx.args[0].text, from: ctx.socket.id };
+}
+```
+
 **执行顺序：**
-1. @Room（加入房间）
-2. 方法执行
-3. @Broadcast（广播结果）
-4. @Room autoLeave（如果启用）
+1. @RateLimit（速率限制检查）
+2. @Room（加入房间）
+3. 方法执行
+4. @PerformanceMonitor（记录性能指标）
+5. @MessageStorage（保存消息到数据库）
+6. @Broadcast（广播结果）
+7. @Room autoLeave（如果启用）
 
 ## TypeScript 支持
 
@@ -492,6 +763,7 @@ location / {
 Socket.IO 服务器实例。
 
 ```typescript
+
 // 获取 Socket.IO 服务器
 const io = app.io;
 
@@ -500,6 +772,7 @@ const nsp = app.io.of('/');
 
 // 向所有客户端广播
 app.io.emit('broadcast', data);
+
 ```
 
 ### `ctx.socket`
@@ -507,6 +780,7 @@ app.io.emit('broadcast', data);
 在中间件和控制器中可用的 Socket.IO socket 实例。
 
 ```typescript
+
 // 向客户端发送事件
 ctx.socket.emit('event', data);
 
@@ -518,6 +792,7 @@ ctx.socket.leave('room');
 
 // 断开连接
 ctx.socket.disconnect();
+
 ```
 
 ## 支持与问题

@@ -84,3 +84,48 @@ export {
 
 export type { Constructor } from './metadata.js';
 
+// Performance monitor decorator
+export {
+  PerformanceMonitor,
+  getPerformanceMonitorMetadata,
+  getAllPerformanceMetrics,
+  getPerformanceMetrics,
+  clearPerformanceMetrics,
+  PerformanceMonitorMetadataRegistry,
+} from './performance.js';
+
+export type {
+  PerformanceMonitorOptions,
+  PerformanceMonitorMetadata,
+  PerformanceMetrics,
+  PerformanceMetric,
+} from './performance.js';
+
+// Rate limit decorator
+export {
+  RateLimit,
+  getRateLimitMetadata,
+  getRateLimitRemaining,
+  clearRateLimits,
+  RateLimitMetadataRegistry,
+} from './rateLimit.js';
+
+export type {
+  RateLimitOptions,
+  RateLimitMetadata,
+  RateLimitKey,
+} from './rateLimit.js';
+
+// Message storage decorator
+export {
+  MessageStorage,
+  getMessageStorageMetadata,
+  MessageStorageMetadataRegistry,
+} from './messageStorage.js';
+
+export type {
+  MessageStorageOptions,
+  MessageStorageMetadata,
+  StorageAdapterType,
+} from './messageStorage.js';
+
